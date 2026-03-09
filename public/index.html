@@ -1,0 +1,1621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BestWord</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=IBM+Plex+Mono:wght@400;600&family=Manrope:wght@300;400;600;700;800&display=swap');
+
+  :root {
+    --bg: #0f1117;
+    --bg2: #181b24;
+    --bg3: #1e2230;
+    --accent: #e8a946;
+    --accent2: #d4943d;
+    --text: #e8e6e3;
+    --text2: #9ea3b0;
+    --green: #4caf7d;
+    --red: #e05555;
+    --blue: #5b8def;
+    --tile-bg: #2a2e3a;
+    --tile-border: #3a3f50;
+    --tile-new: #3b4a2e;
+    --tile-new-border: #5a7a40;
+    --board-line: #2a2e3a;
+    --vowel: #5b8def;
+    --consonant: #e8a946;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family: 'Manrope', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ─── Header ──────────────────────────────── */
+  header {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--bg3);
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo {
+    font-family: 'DM Serif Display', serif;
+    font-size: 26px;
+    color: var(--accent);
+    letter-spacing: 2px;
+  }
+  .logo span { color: var(--text); }
+  .header-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .player-name-display {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--text2);
+  }
+
+  /* ─── Screens ─────────────────────────────── */
+  .screen { display:none; }
+  .screen.active { display:flex; }
+
+  /* ─── Welcome Screen ──────────────────────── */
+  #welcomeScreen {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100vh - 60px);
+    gap: 24px;
+    padding: 40px;
+  }
+  #welcomeScreen h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 36px;
+    color: var(--accent);
+  }
+  #welcomeScreen p {
+    color: var(--text2);
+    max-width: 400px;
+    text-align: center;
+    line-height: 1.6;
+  }
+  .name-input {
+    background: var(--bg3);
+    border: 2px solid var(--tile-border);
+    color: var(--text);
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-family: 'IBM Plex Mono', monospace;
+    width: 260px;
+    text-align: center;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .name-input:focus { border-color: var(--accent); }
+  .btn {
+    padding: 12px 28px;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Manrope', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.5px;
+  }
+  .btn:hover { transform: translateY(-1px); }
+  .btn:active { transform: translateY(0); }
+  .btn-primary {
+    background: var(--accent);
+    color: var(--bg);
+  }
+  .btn-primary:hover { background: var(--accent2); }
+  .btn-secondary {
+    background: var(--bg3);
+    color: var(--text);
+    border: 1px solid var(--tile-border);
+  }
+  .btn-danger {
+    background: var(--red);
+    color: #fff;
+  }
+  .btn-success {
+    background: var(--green);
+    color: #fff;
+  }
+  .btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* ─── Lobby ───────────────────────────────── */
+  #lobbyScreen {
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 24px;
+    gap: 24px;
+    min-height: calc(100vh - 60px);
+  }
+  .lobby-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .lobby-list {
+    background: var(--bg2);
+    border: 1px solid var(--bg3);
+    border-radius: 12px;
+    padding: 16px;
+    width: 100%;
+    max-width: 500px;
+    min-height: 200px;
+  }
+  .lobby-list h3 {
+    font-size: 14px;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+  }
+  .lobby-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: var(--bg3);
+    border-radius: 8px;
+    margin-bottom: 8px;
+  }
+  .lobby-item-name {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+    color: var(--text);
+  }
+  .lobby-item-time {
+    font-size: 12px;
+    color: var(--text2);
+    margin-left: 8px;
+  }
+  .lobby-empty {
+    color: var(--text2);
+    text-align: center;
+    padding: 40px;
+    font-size: 14px;
+  }
+  .my-request-banner {
+    background: var(--bg3);
+    border: 1px dashed var(--accent);
+    border-radius: 10px;
+    padding: 16px 24px;
+    text-align: center;
+    color: var(--text2);
+    width: 100%;
+    max-width: 500px;
+  }
+  .my-request-banner .waiting-dots::after {
+    content: '';
+    animation: dots 1.5s steps(4,end) infinite;
+  }
+  @keyframes dots {
+    0% { content: ''; }
+    25% { content: '.'; }
+    50% { content: '..'; }
+    75% { content: '...'; }
+  }
+
+  /* ─── Game Screen ─────────────────────────── */
+  #gameScreen {
+    flex-direction: row;
+    padding: 16px;
+    gap: 16px;
+    min-height: calc(100vh - 60px);
+    justify-content: center;
+  }
+
+  /* ─── Board ───────────────────────────────── */
+  .board-container {
+    flex-shrink: 0;
+    user-select: none;
+  }
+  .board-wrapper {
+    position: relative;
+  }
+  .col-labels, .row-labels {
+    display: flex;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--text2);
+    font-weight: 600;
+  }
+  .col-labels {
+    flex-direction: row;
+    margin-left: 24px;
+    margin-bottom: 2px;
+  }
+  .col-labels span {
+    width: 36px;
+    text-align: center;
+  }
+  .row-label {
+    width: 24px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 4px;
+  }
+  .board-grid-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+  }
+  .board-grid {
+    display: inline-block;
+    background: var(--bg2);
+    border: 2px solid var(--board-line);
+    border-radius: 6px;
+  }
+  .board-row {
+    display: flex;
+  }
+  .cell {
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--board-line);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.1s;
+  }
+  .cell:hover { background: var(--bg3); }
+  .cell.occupied {
+    background: var(--tile-bg);
+    cursor: default;
+  }
+  .cell.occupied .cell-letter { color: var(--text); }
+  .cell.new-tile {
+    background: var(--tile-new);
+    border-color: var(--tile-new-border);
+  }
+  .cell.new-tile .cell-letter {
+    color: #a4d475;
+  }
+  .cell .cell-letter.vowel-letter { color: var(--vowel); }
+  .cell .cell-letter.consonant-letter { color: var(--consonant); }
+  .cell.arrow-cell {
+    background: rgba(232, 169, 70, 0.12);
+  }
+  .cell .arrow {
+    font-size: 20px;
+    color: var(--accent);
+    position: absolute;
+    pointer-events: none;
+  }
+  .cell .temp-letter {
+    color: var(--green);
+    font-weight: 700;
+  }
+  .cell .cell-value {
+    position: absolute;
+    bottom: 1px;
+    right: 2px;
+    font-size: 8px;
+    color: var(--text2);
+    font-weight: 400;
+  }
+
+  /* ─── Sidebar ─────────────────────────────── */
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 320px;
+    flex-shrink: 0;
+  }
+  .panel {
+    background: var(--bg2);
+    border: 1px solid var(--bg3);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .panel-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--text2);
+    margin-bottom: 10px;
+    font-weight: 700;
+  }
+
+  /* Scores */
+  .scores {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .score-box {
+    flex: 1;
+    text-align: center;
+    padding: 10px;
+    border-radius: 8px;
+    background: var(--bg3);
+  }
+  .score-box.active-turn {
+    border: 2px solid var(--accent);
+  }
+  .score-box .sname {
+    font-size: 12px;
+    color: var(--text2);
+    margin-bottom: 4px;
+    font-weight: 600;
+  }
+  .score-box .sval {
+    font-family: 'DM Serif Display', serif;
+    font-size: 28px;
+    color: var(--text);
+  }
+  .score-box .sval.mine { color: var(--accent); }
+
+  /* Rack */
+  .rack-tiles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  .rack-tile {
+    width: 34px;
+    height: 34px;
+    background: var(--tile-bg);
+    border: 1px solid var(--tile-border);
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--consonant);
+    position: relative;
+  }
+  .rack-tile .rv {
+    position: absolute;
+    bottom: 1px;
+    right: 2px;
+    font-size: 8px;
+    color: var(--text2);
+  }
+
+  /* Status */
+  .status-text {
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .status-text.highlight { color: var(--accent); font-weight: 700; }
+  .status-text.error-text { color: var(--red); }
+
+  /* Actions */
+  .actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .actions .btn { width: 100%; }
+
+  /* Bag */
+  .bag-info {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--text2);
+    line-height: 1.6;
+  }
+  .bag-letter {
+    display: inline-block;
+    min-width: 32px;
+    text-align: center;
+  }
+  .bag-count { color: var(--text); }
+
+  /* Move history */
+  .history-list {
+    max-height: 220px;
+    overflow-y: auto;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--text2);
+    line-height: 1.8;
+  }
+  .history-list::-webkit-scrollbar { width:6px; }
+  .history-list::-webkit-scrollbar-thumb { background: var(--bg3); border-radius:3px; }
+  .history-move { padding: 2px 0; }
+  .history-move.mine { color: var(--accent); }
+  .history-move .hw { color: var(--text); font-weight: 600; }
+  .history-move .hs { color: var(--green); }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-20px);
+    background: var(--bg3);
+    border: 1px solid var(--tile-border);
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-size: 14px;
+    color: var(--text);
+    z-index: 200;
+    opacity: 0;
+    transition: all 0.3s;
+    pointer-events: none;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  .toast.error { border-color: var(--red); color: var(--red); }
+  .toast.success { border-color: var(--green); color: var(--green); }
+
+  /* Disconnect banner */
+  .disconnect-banner {
+    display: none;
+    background: rgba(224, 85, 85, 0.15);
+    border: 1px solid var(--red);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--red);
+    text-align: center;
+  }
+  .disconnect-banner.show { display: block; }
+
+  /* Game over banner (inline in sidebar) */
+  .game-over-banner {
+    display: none;
+    background: var(--bg2);
+    border: 2px solid var(--accent);
+    border-radius: 10px;
+    padding: 16px 20px;
+    text-align: center;
+  }
+  .game-over-banner.show { display: block; }
+  .game-over-banner h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 26px;
+    margin-bottom: 6px;
+  }
+  .game-over-banner .result-text {
+    font-size: 13px;
+    color: var(--text2);
+    margin-bottom: 4px;
+  }
+  .game-over-banner .final-scores {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 16px;
+    margin: 10px 0;
+    color: var(--text);
+  }
+
+  /* Virtual Keyboard */
+  .vkb {
+    margin-top: 10px;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* Clocks */
+  .clocks {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .clock-box {
+    flex: 1;
+    text-align: center;
+    padding: 8px;
+    border-radius: 8px;
+    background: var(--bg3);
+  }
+  .clock-box.ticking {
+    border: 2px solid var(--accent);
+  }
+  .clock-box .clock-name {
+    font-size: 11px;
+    color: var(--text2);
+    margin-bottom: 2px;
+    font-weight: 600;
+  }
+  .clock-box .clock-time {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .clock-box .clock-time.mine { color: var(--accent); }
+  .clock-box .clock-time.low { color: var(--red); }
+
+  /* Time control selector */
+  .tc-select {
+    background: var(--bg3);
+    border: 1px solid var(--tile-border);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    outline: none;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  .tc-select:focus { border-color: var(--accent); }
+  .tc-label {
+    font-size: 12px;
+    color: var(--text2);
+    margin-right: 6px;
+  }
+  .lobby-item-tc {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    background: rgba(232, 169, 70, 0.12);
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-left: 8px;
+  }
+  .vkb-row {
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+    margin-bottom: 4px;
+  }
+  .vkb-key {
+    min-width: 32px;
+    height: 38px;
+    border: 1px solid var(--tile-border);
+    border-radius: 6px;
+    background: var(--bg3);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.1s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .vkb-key:active { background: var(--tile-bg); }
+  .vkb-key.vowel-key { color: var(--vowel); }
+  .vkb-key.consonant-key { color: var(--consonant); }
+  .vkb-key.wide { min-width: 60px; font-size: 12px; padding: 0 8px; }
+  .vkb-key.enter-key { background: var(--green); color: #fff; }
+  .vkb-key.bksp-key { background: var(--tile-bg); }
+  .vkb-key.esc-key { background: var(--red); color: #fff; }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    #gameScreen { flex-direction: column; align-items: center; }
+    .sidebar { width: 100%; max-width: 560px; }
+    .cell { width: 30px; height: 30px; font-size: 13px; }
+    .col-labels span { width: 30px; }
+    .row-label { height: 30px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Best<span>Word</span></div>
+  <div class="header-info">
+    <span class="player-name-display" id="headerName"></span>
+  </div>
+</header>
+
+<div class="toast" id="toast"></div>
+
+<!-- Welcome -->
+<div class="screen active" id="welcomeScreen">
+  <h2>Welcome</h2>
+  <p>A strategic word game where consonants are precious and vowels flow free. Enter your name to begin.</p>
+  <input type="text" class="name-input" id="nameInput" placeholder="Your name" maxlength="20" autofocus>
+  <button class="btn btn-primary" id="enterBtn">Enter Lobby</button>
+</div>
+
+<!-- Lobby -->
+<div class="screen" id="lobbyScreen">
+  <div class="lobby-header">
+    <h2 style="font-family:'DM Serif Display',serif; font-size:24px;">Game Lobby</h2>
+    <span class="tc-label">Time:</span>
+    <select class="tc-select" id="tcSelect">
+      <option value="5">5+30</option>
+      <option value="15" selected>15+30</option>
+      <option value="25">25+30</option>
+    </select>
+    <button class="btn btn-primary" id="createRequestBtn">Create Game</button>
+    <button class="btn btn-danger" id="cancelRequestBtn" style="display:none;">Cancel</button>
+  </div>
+  <div class="my-request-banner" id="myRequestBanner" style="display:none;">
+    <span>Waiting for an opponent<span class="waiting-dots"></span></span>
+  </div>
+  <div class="lobby-list" id="lobbyList">
+    <h3>Open Games</h3>
+    <div id="lobbyItems"></div>
+  </div>
+</div>
+
+<!-- Game -->
+<div class="screen" id="gameScreen">
+  <div class="board-container">
+    <div class="board-wrapper">
+      <div class="col-labels" id="colLabels"></div>
+      <div id="boardRows"></div>
+    </div>
+    <div class="vkb" id="virtualKeyboard">
+      <div class="vkb-row">
+        <div class="vkb-key consonant-key" data-key="Q">Q</div>
+        <div class="vkb-key consonant-key" data-key="W">W</div>
+        <div class="vkb-key vowel-key" data-key="E">E</div>
+        <div class="vkb-key consonant-key" data-key="R">R</div>
+        <div class="vkb-key consonant-key" data-key="T">T</div>
+        <div class="vkb-key vowel-key" data-key="Y">Y</div>
+        <div class="vkb-key vowel-key" data-key="U">U</div>
+        <div class="vkb-key vowel-key" data-key="I">I</div>
+        <div class="vkb-key vowel-key" data-key="O">O</div>
+        <div class="vkb-key consonant-key" data-key="P">P</div>
+      </div>
+      <div class="vkb-row">
+        <div class="vkb-key vowel-key" data-key="A">A</div>
+        <div class="vkb-key consonant-key" data-key="S">S</div>
+        <div class="vkb-key consonant-key" data-key="D">D</div>
+        <div class="vkb-key consonant-key" data-key="F">F</div>
+        <div class="vkb-key consonant-key" data-key="G">G</div>
+        <div class="vkb-key consonant-key" data-key="H">H</div>
+        <div class="vkb-key consonant-key" data-key="J">J</div>
+        <div class="vkb-key consonant-key" data-key="K">K</div>
+        <div class="vkb-key consonant-key" data-key="L">L</div>
+      </div>
+      <div class="vkb-row">
+        <div class="vkb-key consonant-key" data-key="Z">Z</div>
+        <div class="vkb-key consonant-key" data-key="X">X</div>
+        <div class="vkb-key consonant-key" data-key="C">C</div>
+        <div class="vkb-key consonant-key" data-key="V">V</div>
+        <div class="vkb-key consonant-key" data-key="B">B</div>
+        <div class="vkb-key consonant-key" data-key="N">N</div>
+        <div class="vkb-key consonant-key" data-key="M">M</div>
+      </div>
+      <div class="vkb-row">
+        <div class="vkb-key wide enter-key" data-key="ENTER">SUBMIT</div>
+        <div class="vkb-key wide bksp-key" data-key="BACKSPACE">&#9003;</div>
+        <div class="vkb-key wide esc-key" data-key="ESCAPE">CLEAR</div>
+      </div>
+    </div>
+  </div>
+  <div class="sidebar">
+    <div class="game-over-banner" id="gameOverBanner"></div>
+
+    <div class="panel">
+      <div class="panel-title">Clock</div>
+      <div class="clocks">
+        <div class="clock-box" id="myClockBox">
+          <div class="clock-name" id="myClockName">You</div>
+          <div class="clock-time mine" id="myClockTime">15:00</div>
+        </div>
+        <div class="clock-box" id="oppClockBox">
+          <div class="clock-name" id="oppClockName">Opponent</div>
+          <div class="clock-time" id="oppClockTime">15:00</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Score</div>
+      <div class="scores">
+        <div class="score-box" id="myScoreBox">
+          <div class="sname" id="myScoreName">You</div>
+          <div class="sval mine" id="myScoreVal">0</div>
+        </div>
+        <div class="score-box" id="oppScoreBox">
+          <div class="sname" id="oppScoreName">Opponent</div>
+          <div class="sval" id="oppScoreVal">0</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="disconnect-banner" id="disconnectBanner">
+      Opponent disconnected. They have 25 seconds to reconnect...
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Status</div>
+      <div class="status-text" id="statusText">Waiting...</div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Your Rack (<span id="rackCount">0</span>/8)</div>
+      <div class="rack-tiles" id="rackTiles"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Actions</div>
+      <div class="actions" id="actionsPanel">
+        <button class="btn btn-primary" id="drawBtn" disabled>Draw Consonants</button>
+        <button class="btn btn-success" id="submitBtn" disabled>Submit Word (Enter)</button>
+        <button class="btn btn-secondary" id="noWordsBtn" disabled>No Words</button>
+        <button class="btn btn-danger" id="passBtn" disabled>Pass (Forfeit)</button>
+        <button class="btn btn-secondary" id="clearBtn" disabled>Clear Move (Esc)</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Bag (<span id="bagTotal">0</span> tiles)</div>
+      <div class="bag-info" id="bagInfo"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Move History</div>
+      <div class="history-list" id="historyList"></div>
+    </div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════════════════════
+// BestWord Client
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const VOWELS = new Set(['A','E','I','O','U','Y']);
+const CONSONANTS = new Set(['B','C','D','F','G','H','J','K','L','M','N','P','Q','R','S','T','V','W','X','Z']);
+
+const LETTER_VALUES = {
+  A:1,E:1,I:1,O:1,U:2,Y:2,S:2,N:3,R:3,T:4,D:4,M:5,L:5,
+  C:6,G:6,H:6,K:7,W:7,P:8,B:8,F:9,V:9,X:10,Z:10,J:11,Q:11
+};
+
+// ─── State ─────────────────────────────────────────────────────────────────────
+let socket;
+let playerToken = localStorage.getItem('bestword_token');
+let playerName = localStorage.getItem('bestword_name') || '';
+let myRequestActive = false;
+
+// Game state
+let gs = null; // current game state from server
+let opponentName = '';
+
+// Move input state
+let arrowPos = null;    // {row, col}
+let arrowDir = 'H';     // 'H' or 'V'
+let typedTiles = [];     // [{row, col, letter}]
+let inputActive = false;
+
+// Clock state (local countdown)
+let myTimeMs = 0;       // my time remaining in ms (from last server sync)
+let oppTimeMs = 0;      // opponent time remaining in ms
+let clockSyncedAt = 0;  // Date.now() when clocks were last synced from server
+let clockInterval = null;
+
+// ─── Elements ──────────────────────────────────────────────────────────────────
+const $id = id => document.getElementById(id);
+const welcomeScreen = $id('welcomeScreen');
+const lobbyScreen = $id('lobbyScreen');
+const gameScreen = $id('gameScreen');
+const nameInput = $id('nameInput');
+const headerName = $id('headerName');
+const lobbyItems = $id('lobbyItems');
+const createRequestBtn = $id('createRequestBtn');
+const cancelRequestBtn = $id('cancelRequestBtn');
+const myRequestBanner = $id('myRequestBanner');
+const drawBtn = $id('drawBtn');
+const submitBtn = $id('submitBtn');
+const noWordsBtn = $id('noWordsBtn');
+const passBtn = $id('passBtn');
+const clearBtn = $id('clearBtn');
+const toast = $id('toast');
+const gameOverBanner = $id('gameOverBanner');
+const disconnectBanner = $id('disconnectBanner');
+
+// ─── Screen Management ─────────────────────────────────────────────────────────
+function showScreen(screen) {
+  [welcomeScreen, lobbyScreen, gameScreen].forEach(s => s.classList.remove('active'));
+  screen.classList.add('active');
+}
+
+// ─── Toast ─────────────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, type = '') {
+  toast.textContent = msg;
+  toast.className = 'toast show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { toast.className = 'toast'; }, 3500);
+}
+
+// ─── Build Board DOM ───────────────────────────────────────────────────────────
+function buildBoard() {
+  const colLabels = $id('colLabels');
+  colLabels.innerHTML = '';
+  for (let c = 0; c < 15; c++) {
+    const sp = document.createElement('span');
+    sp.textContent = String.fromCharCode(65 + c);
+    colLabels.appendChild(sp);
+  }
+
+  const boardRows = $id('boardRows');
+  boardRows.innerHTML = '';
+  for (let r = 0; r < 15; r++) {
+    const rowDiv = document.createElement('div');
+    rowDiv.className = 'board-grid-row';
+    const label = document.createElement('div');
+    label.className = 'row-label';
+    label.textContent = (r + 1);
+    rowDiv.appendChild(label);
+
+    for (let c = 0; c < 15; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.dataset.row = r;
+      cell.dataset.col = c;
+      cell.addEventListener('click', () => onCellClick(r, c));
+      rowDiv.appendChild(cell);
+    }
+    boardRows.appendChild(rowDiv);
+  }
+}
+
+function getCell(r, c) {
+  return document.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
+}
+
+// ─── Render Board ──────────────────────────────────────────────────────────────
+function renderBoard() {
+  if (!gs) return;
+  const board = gs.board;
+  const lastMove = gs.moveHistory.length > 0 ? gs.moveHistory[gs.moveHistory.length - 1] : null;
+  const lastNewTiles = new Set();
+  if (lastMove && lastMove.action === 'PLACE' && lastMove.startRow !== undefined) {
+    // Mark new tiles from last move
+    // We need to figure out which tiles were new - reconstruct from move data
+  }
+
+  // Build temp tile map
+  const tempMap = new Map();
+  for (const t of typedTiles) {
+    tempMap.set(`${t.row},${t.col}`, t.letter);
+  }
+
+  for (let r = 0; r < 15; r++) {
+    for (let c = 0; c < 15; c++) {
+      const cell = getCell(r, c);
+      const key = `${r},${c}`;
+      cell.innerHTML = '';
+      cell.className = 'cell';
+
+      if (board[r][c] !== null) {
+        cell.classList.add('occupied');
+        const letterSpan = document.createElement('span');
+        letterSpan.className = 'cell-letter';
+        if (VOWELS.has(board[r][c])) letterSpan.classList.add('vowel-letter');
+        else letterSpan.classList.add('consonant-letter');
+        letterSpan.textContent = board[r][c];
+        cell.appendChild(letterSpan);
+
+        const valSpan = document.createElement('span');
+        valSpan.className = 'cell-value';
+        valSpan.textContent = LETTER_VALUES[board[r][c]];
+        cell.appendChild(valSpan);
+      } else if (tempMap.has(key)) {
+        const letterSpan = document.createElement('span');
+        letterSpan.className = 'temp-letter';
+        letterSpan.textContent = tempMap.get(key);
+        cell.appendChild(letterSpan);
+      }
+
+      // Arrow
+      if (arrowPos && arrowPos.row === r && arrowPos.col === c && board[r][c] === null && !tempMap.has(key)) {
+        cell.classList.add('arrow-cell');
+        const arrSpan = document.createElement('span');
+        arrSpan.className = 'arrow';
+        arrSpan.textContent = arrowDir === 'H' ? '\u21E8' : '\u21E9';
+        cell.appendChild(arrSpan);
+      }
+    }
+  }
+}
+
+// ─── Render Rack ───────────────────────────────────────────────────────────────
+function renderRack() {
+  if (!gs) return;
+  const rackEl = $id('rackTiles');
+  rackEl.innerHTML = '';
+  // Compute which consonants are used in typed tiles
+  const usedConsonants = [];
+  for (const t of typedTiles) {
+    if (CONSONANTS.has(t.letter)) usedConsonants.push(t.letter);
+  }
+  const rackCopy = [...gs.myRack];
+  // Mark used ones
+  const used = new Array(rackCopy.length).fill(false);
+  for (const uc of usedConsonants) {
+    const idx = rackCopy.findIndex((l, i) => l === uc && !used[i]);
+    if (idx !== -1) used[idx] = true;
+  }
+
+  for (let i = 0; i < rackCopy.length; i++) {
+    const div = document.createElement('div');
+    div.className = 'rack-tile';
+    if (used[i]) div.style.opacity = '0.3';
+    div.textContent = rackCopy[i];
+    const rv = document.createElement('span');
+    rv.className = 'rv';
+    rv.textContent = LETTER_VALUES[rackCopy[i]];
+    div.appendChild(rv);
+    rackEl.appendChild(div);
+  }
+  $id('rackCount').textContent = rackCopy.length;
+}
+
+// ─── Render Bag ────────────────────────────────────────────────────────────────
+function renderBag() {
+  if (!gs) return;
+  const bagEl = $id('bagInfo');
+  $id('bagTotal').textContent = gs.bagTotal;
+  let html = '';
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  for (const l of letters) {
+    const cnt = gs.bag[l] || 0;
+    if (cnt > 0) {
+      const cls = VOWELS.has(l) ? 'vowel-letter' : 'consonant-letter';
+      html += `<span class="bag-letter"><span class="${cls}">${l}</span>:<span class="bag-count">${cnt}</span></span> `;
+    }
+  }
+  bagEl.innerHTML = html;
+}
+
+// ─── Render History ────────────────────────────────────────────────────────────
+function renderHistory() {
+  if (!gs) return;
+  const el = $id('historyList');
+  el.innerHTML = '';
+  for (let i = 0; i < gs.moveHistory.length; i++) {
+    const m = gs.moveHistory[i];
+    const div = document.createElement('div');
+    div.className = 'history-move' + (m.isMe ? ' mine' : '');
+    const who = m.isMe ? 'You' : 'Opp';
+    if (m.action === 'PASS') {
+      div.textContent = `${i + 1}. ${who}: PASS`;
+    } else if (m.action === 'NO_WORDS') {
+      div.textContent = `${i + 1}. ${who}: NO WORDS`;
+    } else if (m.action === 'PLACE') {
+      const colLetter = String.fromCharCode(65 + m.startCol);
+      const rowNum = m.startRow + 1;
+      const moveStr = m.direction === 'V'
+        ? `${colLetter}${rowNum}`
+        : `${rowNum}${colLetter}`;
+      div.innerHTML = `${i + 1}. ${who}: <span class="hw">${m.word}</span> (${moveStr}) <span class="hs">+${m.score}</span>`;
+      if (m.secondaryWords && m.secondaryWords.length > 0) {
+        div.innerHTML += ` <span style="color:var(--text2);">[+${m.secondaryWords.join(', ')}]</span>`;
+      }
+    } else if (m.action === 'DISCONNECT_LOSS') {
+      div.textContent = `${i + 1}. ${who}: DISCONNECTED`;
+      div.style.color = 'var(--red)';
+    } else if (m.action === 'TIMEOUT_LOSS') {
+      div.textContent = `${i + 1}. ${who}: TIME OUT`;
+      div.style.color = 'var(--red)';
+    }
+    el.appendChild(div);
+  }
+  el.scrollTop = el.scrollHeight;
+}
+
+// ─── Render Scores ─────────────────────────────────────────────────────────────
+function renderScores() {
+  if (!gs) return;
+  $id('myScoreVal').textContent = gs.myScore;
+  $id('oppScoreVal').textContent = gs.opponentScore;
+  $id('myScoreName').textContent = playerName || 'You';
+  $id('oppScoreName').textContent = opponentName || 'Opponent';
+
+  $id('myScoreBox').classList.toggle('active-turn', gs.isMyTurn);
+  $id('oppScoreBox').classList.toggle('active-turn', !gs.isMyTurn);
+}
+
+// ─── Render Status ─────────────────────────────────────────────────────────────
+function renderStatus() {
+  if (!gs) return;
+  const el = $id('statusText');
+  el.className = 'status-text';
+
+  if (gs.phase === 'finished') {
+    el.textContent = 'Game Over';
+  } else if (!gs.isMyTurn) {
+    el.textContent = "Opponent's turn — please wait.";
+  } else if (gs.phase === 'draw' && !gs.drawDone) {
+    el.textContent = 'Click "Draw Consonants" to start your turn.';
+    el.classList.add('highlight');
+  } else if (gs.phase === 'action') {
+    if (gs.opponentPassed) {
+      el.textContent = 'Opponent has passed. You must play a word or pass.';
+      el.classList.add('highlight');
+    } else if (gs.drewCount === 0) {
+      el.textContent = 'No consonants drawn. You must play a word or pass.';
+      el.classList.add('highlight');
+    } else {
+      el.textContent = 'Click a square to place a word, or choose an action.';
+      el.classList.add('highlight');
+    }
+  }
+}
+
+// ─── Render Actions ────────────────────────────────────────────────────────────
+function renderActions() {
+  if (!gs) return;
+  const isMyTurn = gs.isMyTurn;
+  const phase = gs.phase;
+
+  drawBtn.disabled = !(isMyTurn && phase === 'draw' && !gs.drawDone);
+  submitBtn.disabled = !(isMyTurn && phase === 'action' && typedTiles.length > 0);
+  noWordsBtn.disabled = !(isMyTurn && phase === 'action' && !gs.opponentPassed && gs.drewCount > 0);
+  passBtn.disabled = !(isMyTurn && phase === 'action');
+  clearBtn.disabled = typedTiles.length === 0;
+}
+
+// ─── Clock ────────────────────────────────────────────────────────────────────
+function formatTime(ms) {
+  if (ms < 0) ms = 0;
+  const totalSec = Math.ceil(ms / 1000);
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  return `${min}:${sec.toString().padStart(2, '0')}`;
+}
+
+function syncClocks() {
+  if (!gs) return;
+  myTimeMs = gs.myTime;
+  oppTimeMs = gs.oppTime;
+  clockSyncedAt = Date.now();
+}
+
+function getClockValues() {
+  if (!gs) return { my: 0, opp: 0 };
+  const elapsed = Date.now() - clockSyncedAt;
+  let my = myTimeMs;
+  let opp = oppTimeMs;
+  // Only the active player's clock ticks down locally
+  if (gs.phase !== 'finished' && gs.phase !== 'waiting') {
+    if (gs.isMyTurn) {
+      my = Math.max(0, myTimeMs - elapsed);
+    } else {
+      opp = Math.max(0, oppTimeMs - elapsed);
+    }
+  }
+  return { my, opp };
+}
+
+function renderClocks() {
+  const { my, opp } = getClockValues();
+  const myEl = $id('myClockTime');
+  const oppEl = $id('oppClockTime');
+  myEl.textContent = formatTime(my);
+  oppEl.textContent = formatTime(opp);
+
+  // Low time warning (under 60 seconds)
+  myEl.classList.toggle('low', my < 60000 && my > 0);
+  oppEl.classList.toggle('low', opp < 60000 && opp > 0);
+
+  // Ticking indicator
+  const isTicking = gs && gs.phase !== 'finished' && gs.phase !== 'waiting';
+  $id('myClockBox').classList.toggle('ticking', isTicking && gs.isMyTurn);
+  $id('oppClockBox').classList.toggle('ticking', isTicking && !gs.isMyTurn);
+
+  // Names
+  $id('myClockName').textContent = playerName || 'You';
+  $id('oppClockName').textContent = opponentName || 'Opponent';
+}
+
+function startClockInterval() {
+  stopClockInterval();
+  clockInterval = setInterval(renderClocks, 200);
+}
+
+function stopClockInterval() {
+  if (clockInterval) {
+    clearInterval(clockInterval);
+    clockInterval = null;
+  }
+}
+
+// ─── Full Render ───────────────────────────────────────────────────────────────
+function renderAll() {
+  syncClocks();
+  renderBoard();
+  renderRack();
+  renderBag();
+  renderHistory();
+  renderScores();
+  renderStatus();
+  renderActions();
+  renderClocks();
+}
+
+// ─── Cell Click ────────────────────────────────────────────────────────────────
+function onCellClick(r, c) {
+  if (!gs || !gs.isMyTurn || gs.phase !== 'action') return;
+  if (gs.board[r][c] !== null) return; // occupied by permanent tile
+
+  // If we have typed tiles, clicking anywhere clears them
+  if (typedTiles.length > 0) {
+    typedTiles = [];
+    // Don't reset arrow - we'll set it fresh below
+  }
+
+  // Toggle direction or set new position
+  if (arrowPos && arrowPos.row === r && arrowPos.col === c) {
+    arrowDir = arrowDir === 'H' ? 'V' : 'H';
+  } else {
+    arrowPos = { row: r, col: c };
+    arrowDir = 'H';
+  }
+  inputActive = true;
+  renderBoard();
+  renderRack();
+  renderActions();
+}
+
+function clearTypedTiles() {
+  typedTiles = [];
+  arrowPos = null;
+  inputActive = false;
+  renderBoard();
+  renderRack();
+  renderActions();
+}
+
+// ─── Keyboard Input (shared logic) ─────────────────────────────────────────────
+function handleKeyInput(key) {
+  if (!gs || !gs.isMyTurn || gs.phase !== 'action') return;
+
+  if (key === 'ESCAPE') {
+    clearTypedTiles();
+    return;
+  }
+
+  if (key === 'ENTER') {
+    submitMove();
+    return;
+  }
+
+  if (key === 'BACKSPACE') {
+    if (typedTiles.length === 0) return;
+    // Remove last typed tile and move arrow back
+    const last = typedTiles.pop();
+    arrowPos = { row: last.row, col: last.col };
+    renderBoard();
+    renderRack();
+    renderActions();
+    return;
+  }
+
+  // Letter input
+  if (!arrowPos || !inputActive) return;
+  if (key.length !== 1 || key < 'A' || key > 'Z') return;
+
+  // Check if it's a valid letter to place
+  if (CONSONANTS.has(key)) {
+    // Must be on rack and not already used
+    const usedConsonants = typedTiles.filter(t => CONSONANTS.has(t.letter)).map(t => t.letter);
+    const rackCopy = [...gs.myRack];
+    for (const uc of usedConsonants) {
+      const idx = rackCopy.indexOf(uc);
+      if (idx !== -1) rackCopy.splice(idx, 1);
+    }
+    if (!rackCopy.includes(key)) {
+      showToast(`${key} is not available on your rack`, 'error');
+      return;
+    }
+  } else if (VOWELS.has(key)) {
+    // Must be available in bag (minus already used vowels)
+    const usedVowels = typedTiles.filter(t => VOWELS.has(t.letter)).map(t => t.letter);
+    const bagCopy = { ...gs.bag };
+    for (const uv of usedVowels) {
+      bagCopy[uv] = (bagCopy[uv] || 0) - 1;
+    }
+    if ((bagCopy[key] || 0) <= 0) {
+      showToast(`${key} is not available in the bag`, 'error');
+      return;
+    }
+  }
+
+  // Place letter at arrow position
+  const { row, col } = arrowPos;
+  if (gs.board[row][col] !== null) return; // shouldn't happen but safety
+  // Check not already a temp tile there
+  if (typedTiles.find(t => t.row === row && t.col === col)) return;
+
+  typedTiles.push({ row, col, letter: key });
+
+  // Advance arrow to next empty square in direction, jumping over occupied AND temp tiles
+  let nr = row, nc = col;
+  const isOccupied = (r, c) => {
+    if (r < 0 || r >= 15 || c < 0 || c >= 15) return false;
+    if (gs.board[r][c] !== null) return true;
+    if (typedTiles.find(t => t.row === r && t.col === c)) return true;
+    return false;
+  };
+  do {
+    if (arrowDir === 'H') nc++; else nr++;
+  } while (nr < 15 && nc < 15 && isOccupied(nr, nc));
+
+  if (nr < 15 && nc < 15) {
+    arrowPos = { row: nr, col: nc };
+  } else {
+    arrowPos = null; // off board
+  }
+
+  renderBoard();
+  renderRack();
+  renderActions();
+}
+
+// Physical keyboard listener
+document.addEventListener('keydown', (e) => {
+  if (!gs || !gs.isMyTurn || gs.phase !== 'action') return;
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+  const key = e.key.toUpperCase();
+  if (key === 'ESCAPE' || key === 'ENTER' || key === 'BACKSPACE' ||
+      (key.length === 1 && key >= 'A' && key <= 'Z')) {
+    e.preventDefault();
+    handleKeyInput(key);
+  }
+});
+
+// Virtual keyboard listener
+document.getElementById('virtualKeyboard').addEventListener('click', (e) => {
+  const keyEl = e.target.closest('.vkb-key');
+  if (!keyEl) return;
+  const key = keyEl.dataset.key;
+  if (key) handleKeyInput(key);
+});
+
+// ─── Move Inference ────────────────────────────────────────────────────────────
+function inferMove() {
+  if (typedTiles.length === 0) return null;
+
+  // Direction is the arrow direction that was set when clicking
+  const direction = arrowDir;
+
+  // Find the "clicked square" - the first typed tile position (or rather, the position
+  // that was clicked). We use the first typed tile's position as proxy.
+  // Actually, we need to infer the start of the principal word.
+
+  // Build a temporary board with typed tiles
+  const tempBoard = gs.board.map(row => [...row]);
+  for (const t of typedTiles) {
+    tempBoard[t.row][t.col] = t.letter;
+  }
+
+  // The first typed tile determines the clicked area
+  const firstTyped = typedTiles[0];
+  let sr = firstTyped.row, sc = firstTyped.col;
+
+  // Walk backwards from the first typed tile to find the start of the word
+  if (direction === 'H') {
+    while (sc > 0 && tempBoard[sr][sc - 1] !== null) sc--;
+  } else {
+    while (sr > 0 && tempBoard[sr - 1][sc] !== null) sr--;
+  }
+
+  // Build the word from the start position
+  let word = '';
+  let r = sr, c = sc;
+  while (r < 15 && c < 15 && tempBoard[r][c] !== null) {
+    word += tempBoard[r][c];
+    if (direction === 'H') c++; else r++;
+  }
+
+  return {
+    startRow: sr,
+    startCol: sc,
+    direction: direction,
+    word: word
+  };
+}
+
+// ─── Submit Move ───────────────────────────────────────────────────────────────
+function submitMove() {
+  if (!gs || !gs.isMyTurn || gs.phase !== 'action' || typedTiles.length === 0) return;
+
+  const move = inferMove();
+  if (!move) {
+    showToast('Could not infer move', 'error');
+    return;
+  }
+
+  socket.emit('placeWord', {
+    startRow: move.startRow,
+    startCol: move.startCol,
+    direction: move.direction,
+    word: move.word
+  });
+}
+
+// ─── Socket Setup ──────────────────────────────────────────────────────────────
+function connectSocket() {
+  socket = io();
+
+  socket.on('connect', () => {
+    if (!playerToken) {
+      // Will register after entering name
+      return;
+    }
+    socket.emit('register', { token: playerToken, name: playerName });
+  });
+
+  socket.on('registered', (data) => {
+    playerToken = data.token;
+    playerName = data.name;
+    localStorage.setItem('bestword_token', playerToken);
+    localStorage.setItem('bestword_name', playerName);
+    headerName.textContent = playerName;
+  });
+
+  socket.on('lobbyUpdate', (list) => {
+    renderLobby(list);
+  });
+
+  socket.on('gameStarted', (data) => {
+    opponentName = data.opponentName;
+    myRequestActive = false;
+    gameOverBanner.classList.remove('show');
+    disconnectBanner.classList.remove('show');
+    clearTypedTiles();
+    startClockInterval();
+    showScreen(gameScreen);
+  });
+
+  socket.on('rejoinGame', (data) => {
+    gs = data;
+    if (gs.opponentName) opponentName = gs.opponentName;
+    gameOverBanner.classList.remove('show');
+    disconnectBanner.classList.remove('show');
+    clearTypedTiles();
+    startClockInterval();
+    showScreen(gameScreen);
+    renderAll();
+  });
+
+  socket.on('gameState', (data) => {
+    gs = data;
+    if (gs.opponentName) opponentName = gs.opponentName;
+    // Clear typed tiles when it becomes opponent's turn (move was accepted)
+    if (!gs.isMyTurn) {
+      typedTiles = [];
+      arrowPos = null;
+      inputActive = false;
+    }
+    renderAll();
+  });
+
+  socket.on('drawResult', (data) => {
+    if (data.drawn.length > 0) {
+      showToast(`Drew: ${data.drawn.join(', ')}`, 'success');
+    } else {
+      showToast('Rack full — draw skipped', '');
+    }
+  });
+
+  socket.on('wordPlaced', (data) => {
+    if (data.playedBy === 'opponent') {
+      showToast(`Opponent played ${data.principalWord} for +${data.score}`, '');
+    } else {
+      showToast(`You played ${data.principalWord} for +${data.score}!`, 'success');
+    }
+  });
+
+  socket.on('actionError', (data) => {
+    showToast(data.message, 'error');
+  });
+
+  socket.on('error', (data) => {
+    showToast(data.message, 'error');
+  });
+
+  socket.on('opponentDisconnected', (data) => {
+    disconnectBanner.classList.add('show');
+  });
+
+  socket.on('opponentReconnected', () => {
+    disconnectBanner.classList.remove('show');
+    showToast('Opponent reconnected', 'success');
+  });
+
+  socket.on('gameOver', (data) => {
+    gs = data;
+    stopClockInterval();
+    renderAll();
+    showGameOver(data);
+  });
+}
+
+// ─── Lobby Render ──────────────────────────────────────────────────────────────
+function renderLobby(list) {
+  lobbyItems.innerHTML = '';
+  const others = list.filter(r => {
+    // The server doesn't send playerToken in lobby data, but we can detect our own
+    // by checking if we have an active request
+    return true;
+  });
+  if (others.length === 0) {
+    lobbyItems.innerHTML = '<div class="lobby-empty">No open games. Create one!</div>';
+    return;
+  }
+  for (const req of others) {
+    const item = document.createElement('div');
+    item.className = 'lobby-item';
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'lobby-item-name';
+    nameSpan.textContent = req.playerName;
+
+    const timeSpan = document.createElement('span');
+    timeSpan.className = 'lobby-item-time';
+    const ago = Math.floor((Date.now() - req.createdAt) / 1000);
+    timeSpan.textContent = ago < 60 ? `${ago}s ago` : `${Math.floor(ago / 60)}m ago`;
+
+    item.appendChild(nameSpan);
+    item.appendChild(timeSpan);
+
+    // Time control tag
+    if (req.timeControl) {
+      const tcTag = document.createElement('span');
+      tcTag.className = 'lobby-item-tc';
+      tcTag.textContent = `${req.timeControl.minutes}+${req.timeControl.increment}`;
+      item.appendChild(tcTag);
+    }
+
+    // Only show Join button if it's not our own request
+    if (!myRequestActive || req.playerName !== playerName) {
+      const joinBtn = document.createElement('button');
+      joinBtn.className = 'btn btn-primary';
+      joinBtn.style.padding = '6px 16px';
+      joinBtn.style.fontSize = '12px';
+      joinBtn.textContent = 'Join';
+      joinBtn.addEventListener('click', () => {
+        socket.emit('joinRequest', { requestId: req.requestId });
+      });
+      item.appendChild(joinBtn);
+    } else {
+      const tag = document.createElement('span');
+      tag.style.cssText = 'color:var(--accent);font-size:12px;font-weight:700;';
+      tag.textContent = '(You)';
+      item.appendChild(tag);
+    }
+
+    lobbyItems.appendChild(item);
+  }
+}
+
+// ─── Game Over ─────────────────────────────────────────────────────────────────
+function showGameOver(data) {
+  let title, color;
+  if (data.result.isDraw) {
+    title = 'Draw!';
+    color = 'var(--text)';
+  } else if (data.result.isWinner) {
+    title = 'You Win!';
+    color = 'var(--green)';
+  } else {
+    title = 'You Lose';
+    color = 'var(--red)';
+  }
+
+  let reason = '';
+  if (data.result.reason === 'disconnect') {
+    reason = data.result.isWinner ? 'Opponent disconnected.' : 'You disconnected.';
+  } else if (data.result.reason === 'timeout') {
+    reason = data.result.isWinner ? 'Opponent ran out of time.' : 'You ran out of time.';
+  }
+
+  gameOverBanner.style.borderColor = color;
+  gameOverBanner.innerHTML = `
+    <h2 style="color:${color}">${title}</h2>
+    <div class="result-text">${reason}</div>
+    <div class="final-scores">
+      ${playerName}: ${data.myScore} — ${opponentName}: ${data.opponentScore}
+    </div>
+    <button class="btn btn-primary" onclick="returnToLobby()">Back to Lobby</button>
+  `;
+  gameOverBanner.classList.add('show');
+}
+
+function returnToLobby() {
+  gs = null;
+  opponentName = '';
+  myRequestActive = false;
+  stopClockInterval();
+  gameOverBanner.classList.remove('show');
+  disconnectBanner.classList.remove('show');
+  createRequestBtn.style.display = '';
+  cancelRequestBtn.style.display = 'none';
+  myRequestBanner.style.display = 'none';
+  showScreen(lobbyScreen);
+}
+
+// ─── Button Handlers ───────────────────────────────────────────────────────────
+$id('enterBtn').addEventListener('click', () => {
+  const name = nameInput.value.trim();
+  if (!name) { showToast('Please enter a name', 'error'); return; }
+  playerName = name;
+  if (!playerToken) {
+    // Generate a permanent token
+    playerToken = crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).substring(2));
+  }
+  localStorage.setItem('bestword_name', playerName);
+  localStorage.setItem('bestword_token', playerToken);
+  headerName.textContent = playerName;
+  socket.emit('register', { token: playerToken, name: playerName });
+  showScreen(lobbyScreen);
+});
+
+nameInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') $id('enterBtn').click();
+});
+
+createRequestBtn.addEventListener('click', () => {
+  const minutes = parseInt($id('tcSelect').value) || 15;
+  socket.emit('createRequest', { minutes });
+  myRequestActive = true;
+  createRequestBtn.style.display = 'none';
+  cancelRequestBtn.style.display = '';
+  myRequestBanner.style.display = '';
+});
+
+cancelRequestBtn.addEventListener('click', () => {
+  socket.emit('cancelRequest');
+  myRequestActive = false;
+  createRequestBtn.style.display = '';
+  cancelRequestBtn.style.display = 'none';
+  myRequestBanner.style.display = 'none';
+});
+
+drawBtn.addEventListener('click', () => { socket.emit('draw'); });
+submitBtn.addEventListener('click', () => { submitMove(); });
+noWordsBtn.addEventListener('click', () => {
+  if (confirm('Forfeit this turn with NO WORDS?')) socket.emit('noWords');
+});
+passBtn.addEventListener('click', () => {
+  if (confirm('PASS permanently forfeits all remaining turns. Are you sure?')) socket.emit('pass');
+});
+clearBtn.addEventListener('click', () => { clearTypedTiles(); });
+
+// ─── Init ──────────────────────────────────────────────────────────────────────
+buildBoard();
+connectSocket();
+
+// If returning player with name set
+if (playerName) {
+  nameInput.value = playerName;
+}
+</script>
+</body>
+</html>
