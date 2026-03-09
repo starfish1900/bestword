@@ -480,10 +480,10 @@ function performDraw(game, playerToken) {
   const availableConsonants = consonantsInBag(game.bag);
 
   let toDraw = 0;
-  if (rackCount >= 8) {
+  if (rackCount >= 10) {
     // Rack full: skip draw
     toDraw = 0;
-  } else if (rackCount === 7) {
+  } else if (rackCount === 9) {
     // Draw 1 if available
     toDraw = Math.min(1, availableConsonants);
   } else {
