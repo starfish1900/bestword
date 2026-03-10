@@ -98,6 +98,7 @@ function finishGameByTimeout(gameId, timedOutToken) {
   if (!g || g.phase === 'finished') return;
   g.phase = 'finished';
   g.turnStartedAt = null;
+  g.players[timedOutToken].timeRemaining = 0;
   const opponent = game.getOpponent(g, timedOutToken);
   g.moveHistory.push({ player: timedOutToken, action: 'TIMEOUT_LOSS' });
 
@@ -134,25 +135,33 @@ io.on('connection', (socket) => {
 
     // Check if player is in an active game (reconnection)
     const activeGameId = playerGames.get(playerToken);
-    if (activeGameId && games.has(activeGameId)) {
-      const g = games.get(activeGameId);
-      if (g.phase !== 'finished' && g.players[playerToken]) {
-        // Cancel disconnect timer
-        const p = g.players[playerToken];
-        if (p.disconnectTimer) {
-          clearTimeout(p.disconnectTimer);
-          p.disconnectTimer = null;
+    if (activeGameId) {
+      if (games.has(activeGameId)) {
+        const g = games.get(activeGameId);
+        if (g.phase !== 'finished' && g.players[playerToken]) {
+          // Cancel disconnect timer
+          const p = g.players[playerToken];
+          if (p.disconnectTimer) {
+            clearTimeout(p.disconnectTimer);
+            p.disconnectTimer = null;
+          }
+          p.connected = true;
+
+          // Notify opponent
+          const opp = game.getOpponent(g, playerToken);
+          if (opp) emitToPlayer(opp, 'opponentReconnected', {});
+
+          // Send current game state
+          socket.emit('rejoinGame', game.getGameState(g, playerToken));
+          sendGameState(g);
+          return;
+        } else {
+          // Game is finished — clean up stale mapping
+          playerGames.delete(playerToken);
         }
-        p.connected = true;
-
-        // Notify opponent
-        const opp = game.getOpponent(g, playerToken);
-        if (opp) emitToPlayer(opp, 'opponentReconnected', {});
-
-        // Send current game state
-        socket.emit('rejoinGame', game.getGameState(g, playerToken));
-        sendGameState(g);
-        return;
+      } else {
+        // Game no longer exists — clean up stale mapping
+        playerGames.delete(playerToken);
       }
     }
 

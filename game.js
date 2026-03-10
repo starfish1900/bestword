@@ -458,9 +458,6 @@ function checkTimeout(game) {
   const elapsed = Date.now() - game.turnStartedAt;
   const remaining = player.timeRemaining - elapsed;
   if (remaining <= 0) {
-    player.timeRemaining = 0;
-    game.turnStartedAt = null;
-    game.phase = 'finished';
     return current; // token of the player who timed out
   }
   return null;
