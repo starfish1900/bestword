@@ -1,51 +1,86 @@
 // BestWord Game Logic
 
+// ─── Language Configurations ───────────────────────────────────────────────────
 const VOWELS = new Set(['A', 'E', 'I', 'O', 'U', 'Y']);
-const CONSONANTS = new Set(['B', 'C', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'X', 'Z']);
 
-const LETTER_VALUES = {
-  A: 1, E: 1, I: 1, O: 1,
-  U: 2, Y: 2, S: 2,
-  N: 3, R: 3,
-  T: 4, D: 4,
-  M: 5, L: 5,
-  C: 6, G: 6, H: 6,
-  K: 7, W: 7,
-  P: 8, B: 8,
-  F: 9, V: 9,
-  X: 10, Z: 10,
-  J: 11, Q: 11
+const LANG_CONFIG = {
+  en: {
+    vowels: VOWELS,
+    consonants: new Set(['B', 'C', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'X', 'Z']),
+    letterValues: {
+      A: 1, E: 1, I: 1, O: 1,
+      U: 2, Y: 2, S: 2,
+      N: 3, R: 3,
+      T: 4, D: 4,
+      M: 5, L: 5,
+      C: 6, G: 6, H: 6,
+      K: 7, W: 7,
+      P: 8, B: 8,
+      F: 9, V: 9,
+      X: 10, Z: 10,
+      J: 11, Q: 11
+    },
+    initialBag: {
+      A: 16, B: 8, C: 10, D: 8, E: 24, F: 7, G: 10, H: 10,
+      I: 16, J: 4, K: 5, L: 8, M: 8, N: 16, O: 10, P: 8,
+      Q: 4, R: 16, S: 16, T: 16, U: 8, V: 7, W: 5, X: 4,
+      Y: 8, Z: 4
+    }
+  },
+  fr: {
+    vowels: VOWELS,
+    consonants: new Set(['B', 'C', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'X', 'Z', 'Ç']),
+    letterValues: {
+      A: 1, E: 1, I: 1, O: 1,
+      U: 2, Y: 2, S: 2,
+      N: 3, R: 3,
+      T: 4, D: 4,
+      M: 5, L: 5,
+      C: 6, G: 6, H: 6,
+      K: 7, W: 7,
+      P: 8, B: 8,
+      F: 9, V: 9,
+      X: 10, Z: 10,
+      J: 11, Q: 11,
+      'Ç': 12
+    },
+    initialBag: {
+      A: 16, B: 8, C: 10, D: 8, E: 24, F: 7, G: 10, H: 10,
+      I: 16, J: 4, K: 5, L: 8, M: 8, N: 16, O: 10, P: 8,
+      Q: 4, R: 16, S: 16, T: 16, U: 8, V: 7, W: 5, X: 4,
+      Y: 8, Z: 4, 'Ç': 2
+    }
+  }
 };
 
-const INITIAL_BAG = {
-  A: 16, B: 8, C: 10, D: 8, E: 24, F: 7, G: 10, H: 10,
-  I: 16, J: 4, K: 5, L: 8, M: 8, N: 16, O: 10, P: 8,
-  Q: 4, R: 16, S: 16, T: 16, U: 8, V: 7, W: 5, X: 4,
-  Y: 8, Z: 4
-};
+function getLangConfig(lang) {
+  return LANG_CONFIG[lang] || LANG_CONFIG.en;
+}
 
 function isVowel(ch) { return VOWELS.has(ch); }
-function isConsonant(ch) { return CONSONANTS.has(ch); }
+function isConsonant(ch, lang) {
+  return getLangConfig(lang).consonants.has(ch);
+}
 
-function createBag() {
+function createBag(lang) {
   const bag = {};
-  for (const [letter, count] of Object.entries(INITIAL_BAG)) {
+  for (const [letter, count] of Object.entries(getLangConfig(lang).initialBag)) {
     bag[letter] = count;
   }
   return bag;
 }
 
-function consonantsInBag(bag) {
+function consonantsInBag(bag, lang) {
   let count = 0;
-  for (const ch of CONSONANTS) {
+  for (const ch of getLangConfig(lang).consonants) {
     count += (bag[ch] || 0);
   }
   return count;
 }
 
-function drawConsonants(bag, count) {
+function drawConsonants(bag, count, lang) {
   const available = [];
-  for (const ch of CONSONANTS) {
+  for (const ch of getLangConfig(lang).consonants) {
     for (let i = 0; i < (bag[ch] || 0); i++) {
       available.push(ch);
     }
@@ -79,21 +114,23 @@ function createBoard() {
 }
 
 // Score a principal word: (sum of letter values) * (number of consonants in word)
-function scorePrincipalWord(word) {
+function scorePrincipalWord(word, lang) {
+  const cfg = getLangConfig(lang);
   let valueSum = 0;
   let consonantCount = 0;
   for (const ch of word) {
-    valueSum += (LETTER_VALUES[ch] || 0);
-    if (isConsonant(ch)) consonantCount++;
+    valueSum += (cfg.letterValues[ch] || 0);
+    if (cfg.consonants.has(ch)) consonantCount++;
   }
   return valueSum * consonantCount;
 }
 
 // Score a secondary word: sum of letter values only
-function scoreSecondaryWord(word) {
+function scoreSecondaryWord(word, lang) {
+  const cfg = getLangConfig(lang);
   let valueSum = 0;
   for (const ch of word) {
-    valueSum += (LETTER_VALUES[ch] || 0);
+    valueSum += (cfg.letterValues[ch] || 0);
   }
   return valueSum;
 }
@@ -188,7 +225,7 @@ function placeInitialWords(board, bag, dawg) {
 // Validate a move: startRow, startCol, direction ('H' or 'V'), word (full word string)
 // newTiles: array of {row, col, letter} - the tiles the player is placing
 // Returns: { valid, error, principalWord, secondaryWords, totalScore, consonantsUsed, vowelsUsed, newTiles }
-function validateMove(board, rack, bag, dawg, startRow, startCol, direction, word, playedPrincipalWords) {
+function validateMove(board, rack, bag, dawg, startRow, startCol, direction, word, playedPrincipalWords, lang) {
   if (!word || word.length < 3 || word.length > 15) {
     return { valid: false, error: 'Word must be between 3 and 15 letters long' };
   }
@@ -239,7 +276,7 @@ function validateMove(board, rack, bag, dawg, startRow, startCol, direction, wor
   }
 
   // Separate new tiles into consonants (must come from rack) and vowels (must come from bag)
-  const newConsonants = newTiles.filter(t => isConsonant(t.letter));
+  const newConsonants = newTiles.filter(t => isConsonant(t.letter, lang));
   const newVowels = newTiles.filter(t => isVowel(t.letter));
 
   // Check consonants are available on rack
@@ -309,9 +346,9 @@ function validateMove(board, rack, bag, dawg, startRow, startCol, direction, wor
   }
 
   // Calculate score
-  let totalScore = scorePrincipalWord(word);
+  let totalScore = scorePrincipalWord(word, lang);
   for (const sw of secondaryWords) {
-    totalScore += scoreSecondaryWord(sw);
+    totalScore += scoreSecondaryWord(sw, lang);
   }
 
   return {
@@ -362,8 +399,9 @@ function extractWord(board, row, col, direction, newTiles) {
 }
 
 // Create a new game state
-function createGame(gameId, player1Token, player1Name, dawg, timeControl) {
-  const bag = createBag();
+function createGame(gameId, player1Token, player1Name, dawg, timeControl, lang) {
+  const gameLang = (lang === 'fr') ? 'fr' : 'en';
+  const bag = createBag(gameLang);
   const board = createBoard();
   const initResult = placeInitialWords(board, bag, dawg);
 
@@ -375,6 +413,7 @@ function createGame(gameId, player1Token, player1Name, dawg, timeControl) {
     id: gameId,
     board,
     bag,
+    lang: gameLang,
     players: {
       [player1Token]: {
         rack: [],
@@ -474,7 +513,7 @@ function performDraw(game, playerToken) {
 
   const player = game.players[playerToken];
   const rackCount = player.rack.length;
-  const availableConsonants = consonantsInBag(game.bag);
+  const availableConsonants = consonantsInBag(game.bag, game.lang);
 
   let toDraw = 0;
   if (rackCount >= 10) {
@@ -488,7 +527,7 @@ function performDraw(game, playerToken) {
     toDraw = Math.min(2, availableConsonants);
   }
 
-  const drawn = toDraw > 0 ? drawConsonants(game.bag, toDraw) : [];
+  const drawn = toDraw > 0 ? drawConsonants(game.bag, toDraw, game.lang) : [];
   player.rack.push(...drawn);
 
   game.drawDone = true;
@@ -570,7 +609,7 @@ function performPlaceWord(game, playerToken, startRow, startCol, direction, word
   const result = validateMove(
     game.board, player.rack, game.bag, dawg,
     startRow, startCol, direction, word.toUpperCase(),
-    game.playedPrincipalWords
+    game.playedPrincipalWords, game.lang
   );
 
   if (!result.valid) return { error: result.error };
@@ -674,12 +713,14 @@ function getGameState(game, playerToken) {
     myTime,
     oppTime,
     timeControl: game.timeControl,
-    serverTime: Date.now()
+    serverTime: Date.now(),
+    lang: game.lang,
+    letterValues: getLangConfig(game.lang).letterValues
   };
 }
 
 module.exports = {
-  VOWELS, CONSONANTS, LETTER_VALUES, INITIAL_BAG,
+  VOWELS, LANG_CONFIG, getLangConfig,
   isVowel, isConsonant, createBag, createBoard, scorePrincipalWord, scoreSecondaryWord,
   placeInitialWords, validateMove, createGame, addPlayer,
   getCurrentPlayer, getOpponent, performDraw, advanceTurn,

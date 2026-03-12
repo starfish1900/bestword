@@ -652,6 +652,11 @@
       <option value="15" selected>15+30</option>
       <option value="25">25+30</option>
     </select>
+    <span class="tc-label">Lang:</span>
+    <select class="tc-select" id="langSelect">
+      <option value="en" selected>English</option>
+      <option value="fr">Français</option>
+    </select>
     <button class="btn btn-primary" id="createRequestBtn">Create Game</button>
     <button class="btn btn-danger" id="cancelRequestBtn" style="display:none;">Cancel</button>
   </div>
@@ -699,6 +704,7 @@
         <div class="vkb-key consonant-key" data-key="Z">Z</div>
         <div class="vkb-key consonant-key" data-key="X">X</div>
         <div class="vkb-key consonant-key" data-key="C">C</div>
+        <div class="vkb-key consonant-key vkb-cedilla" data-key="Ç" style="display:none;">Ç</div>
         <div class="vkb-key consonant-key" data-key="V">V</div>
         <div class="vkb-key consonant-key" data-key="B">B</div>
         <div class="vkb-key consonant-key" data-key="N">N</div>
@@ -786,12 +792,28 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const VOWELS = new Set(['A','E','I','O','U','Y']);
-const CONSONANTS = new Set(['B','C','D','F','G','H','J','K','L','M','N','P','Q','R','S','T','V','W','X','Z']);
 
-const LETTER_VALUES = {
+// Default English consonants; French adds Ç
+const CONSONANTS_EN = new Set(['B','C','D','F','G','H','J','K','L','M','N','P','Q','R','S','T','V','W','X','Z']);
+const CONSONANTS_FR = new Set(['B','C','D','F','G','H','J','K','L','M','N','P','Q','R','S','T','V','W','X','Z','Ç']);
+
+const LETTER_VALUES_EN = {
   A:1,E:1,I:1,O:1,U:2,Y:2,S:2,N:3,R:3,T:4,D:4,M:5,L:5,
   C:6,G:6,H:6,K:7,W:7,P:8,B:8,F:9,V:9,X:10,Z:10,J:11,Q:11
 };
+
+// Get the right consonant set for the current game
+function getConsonants() {
+  return (gs && gs.lang === 'fr') ? CONSONANTS_FR : CONSONANTS_EN;
+}
+
+// Get letter value from game state (server-authoritative) or fallback
+function getLetterValue(ch) {
+  if (gs && gs.letterValues && gs.letterValues[ch] !== undefined) return gs.letterValues[ch];
+  return LETTER_VALUES_EN[ch] || 0;
+}
+
+function isConsonant(ch) { return getConsonants().has(ch); }
 
 // ─── State ─────────────────────────────────────────────────────────────────────
 let socket;
@@ -921,7 +943,7 @@ function renderBoard() {
 
         const valSpan = document.createElement('span');
         valSpan.className = 'cell-value';
-        valSpan.textContent = LETTER_VALUES[board[r][c]];
+        valSpan.textContent = getLetterValue(board[r][c]);
         cell.appendChild(valSpan);
       } else if (tempMap.has(key)) {
         const letterSpan = document.createElement('span');
@@ -950,7 +972,7 @@ function renderRack() {
   // Compute which consonants are used in typed tiles
   const usedConsonants = [];
   for (const t of typedTiles) {
-    if (CONSONANTS.has(t.letter)) usedConsonants.push(t.letter);
+    if (isConsonant(t.letter)) usedConsonants.push(t.letter);
   }
   const rackCopy = [...gs.myRack];
   // Mark used ones
@@ -967,7 +989,7 @@ function renderRack() {
     div.textContent = rackCopy[i];
     const rv = document.createElement('span');
     rv.className = 'rv';
-    rv.textContent = LETTER_VALUES[rackCopy[i]];
+    rv.textContent = getLetterValue(rackCopy[i]);
     div.appendChild(rv);
     rackEl.appendChild(div);
   }
@@ -981,6 +1003,7 @@ function renderBag() {
   $id('bagTotal').textContent = gs.bagTotal;
   let html = '';
   const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  if (gs.lang === 'fr') letters.push('Ç');
   for (const l of letters) {
     const cnt = gs.bag[l] || 0;
     if (cnt > 0) {
@@ -1155,6 +1178,12 @@ function renderAll() {
   renderStatus();
   renderActions();
   renderClocks();
+
+  // Show/hide Ç virtual key based on game language
+  const cedillaKey = document.querySelector('.vkb-cedilla');
+  if (cedillaKey) {
+    cedillaKey.style.display = (gs && gs.lang === 'fr') ? '' : 'none';
+  }
 }
 
 // ─── Cell Click ────────────────────────────────────────────────────────────────
@@ -1217,12 +1246,13 @@ function handleKeyInput(key) {
 
   // Letter input
   if (!arrowPos || !inputActive) return;
-  if (key.length !== 1 || key < 'A' || key > 'Z') return;
+  const isLetter = (key.length === 1 && key >= 'A' && key <= 'Z') || key === 'Ç';
+  if (!isLetter) return;
 
   // Check if it's a valid letter to place
-  if (CONSONANTS.has(key)) {
+  if (isConsonant(key)) {
     // Must be on rack and not already used
-    const usedConsonants = typedTiles.filter(t => CONSONANTS.has(t.letter)).map(t => t.letter);
+    const usedConsonants = typedTiles.filter(t => isConsonant(t.letter)).map(t => t.letter);
     const rackCopy = [...gs.myRack];
     for (const uc of usedConsonants) {
       const idx = rackCopy.indexOf(uc);
@@ -1281,9 +1311,15 @@ document.addEventListener('keydown', (e) => {
   if (!gs || !gs.isMyTurn || gs.phase !== 'action') return;
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
-  const key = e.key.toUpperCase();
+  let key = e.key.toUpperCase();
+
+  // Shift+C produces Ç in French games
+  if (key === 'C' && e.shiftKey && gs.lang === 'fr') {
+    key = 'Ç';
+  }
+
   if (key === 'ESCAPE' || key === 'ENTER' || key === 'BACKSPACE' ||
-      (key.length === 1 && key >= 'A' && key <= 'Z')) {
+      (key.length === 1 && key >= 'A' && key <= 'Z') || key === 'Ç') {
     e.preventDefault();
     handleKeyInput(key);
   }
@@ -1493,6 +1529,12 @@ function renderLobby(list) {
       item.appendChild(tcTag);
     }
 
+    // Language tag
+    const langTag = document.createElement('span');
+    langTag.className = 'lobby-item-tc';
+    langTag.textContent = (req.lang || 'en').toUpperCase();
+    item.appendChild(langTag);
+
     // Only show Join button if it's not our own request
     if (!myRequestActive || req.playerName !== playerName) {
       const joinBtn = document.createElement('button');
@@ -1583,7 +1625,8 @@ nameInput.addEventListener('keydown', (e) => {
 
 createRequestBtn.addEventListener('click', () => {
   const minutes = parseInt($id('tcSelect').value) || 15;
-  socket.emit('createRequest', { minutes });
+  const lang = $id('langSelect').value || 'en';
+  socket.emit('createRequest', { minutes, lang });
   myRequestActive = true;
   createRequestBtn.style.display = 'none';
   cancelRequestBtn.style.display = '';

@@ -13,14 +13,26 @@ const io = new Server(server, { pingInterval: 10000, pingTimeout: 20000 });
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ─── Load Dictionary & Build DAWG ──────────────────────────────────────────────
-console.log('Loading dictionary...');
-const dictRaw = fs.readFileSync(path.join(__dirname, 'dictionary.txt'), 'utf-8');
-const words = dictRaw.split(/\r?\n/).map(w => w.trim().toUpperCase()).filter(w => w.length > 0);
-console.log(`Dictionary loaded: ${words.length} words`);
-console.log('Building DAWG...');
-const dawg = DAWG.build(words);
-console.log('DAWG built successfully');
+// ─── Load Dictionaries & Build DAWGs ────────────────────────────────────────
+const dawgs = {};
+
+console.log('Loading English dictionary...');
+const dictEn = fs.readFileSync(path.join(__dirname, 'dictionary.txt'), 'utf-8');
+const wordsEn = dictEn.split(/\r?\n/).map(w => w.trim().toUpperCase()).filter(w => w.length > 0);
+console.log(`English dictionary: ${wordsEn.length} words`);
+console.log('Building English DAWG...');
+dawgs.en = DAWG.build(wordsEn);
+console.log('English DAWG built');
+
+console.log('Loading French dictionary...');
+const dictFr = fs.readFileSync(path.join(__dirname, 'dictionary_fr.txt'), 'utf-8');
+const wordsFr = dictFr.split(/\r?\n/).map(w => w.trim().toUpperCase()).filter(w => w.length > 0);
+console.log(`French dictionary: ${wordsFr.length} words`);
+console.log('Building French DAWG...');
+dawgs.fr = DAWG.build(wordsFr);
+console.log('French DAWG built');
+
+function getDawg(lang) { return dawgs[lang] || dawgs.en; }
 
 // ─── State ─────────────────────────────────────────────────────────────────────
 const games = new Map();          // gameId -> game state
@@ -43,7 +55,7 @@ function emitToPlayer(playerToken, event, data) {
 function broadcastLobby() {
   const list = [];
   for (const [reqId, req] of lobby) {
-    list.push({ requestId: reqId, playerName: req.playerName, createdAt: req.createdAt, timeControl: req.timeControl });
+    list.push({ requestId: reqId, playerName: req.playerName, createdAt: req.createdAt, timeControl: req.timeControl, lang: req.lang });
   }
   io.emit('lobbyUpdate', list);
 }
@@ -186,13 +198,17 @@ io.on('connection', (socket) => {
     const minutes = (data && validMinutes.includes(data.minutes)) ? data.minutes : 15;
     const timeControl = { minutes, increment: 30 };
 
+    // Parse language
+    const lang = (data && data.lang === 'fr') ? 'fr' : 'en';
+
     const requestId = uuidv4();
     lobby.set(requestId, {
       playerToken,
       playerName: playerNames.get(playerToken) || 'Anonymous',
       requestId,
       createdAt: Date.now(),
-      timeControl
+      timeControl,
+      lang
     });
     broadcastLobby();
   });
@@ -234,7 +250,7 @@ io.on('connection', (socket) => {
     // Create game
     const gameId = uuidv4();
     try {
-      const g = game.createGame(gameId, req.playerToken, req.playerName, dawg, req.timeControl);
+      const g = game.createGame(gameId, req.playerToken, req.playerName, getDawg(req.lang), req.timeControl, req.lang);
       game.addPlayer(g, playerToken, playerNames.get(playerToken) || 'Anonymous');
       games.set(gameId, g);
       playerGames.set(req.playerToken, gameId);
@@ -244,13 +260,15 @@ io.on('connection', (socket) => {
         gameId,
         opponentName: playerNames.get(playerToken) || 'Anonymous',
         playerIndex: 0,
-        timeControl: req.timeControl
+        timeControl: req.timeControl,
+        lang: req.lang
       });
       socket.emit('gameStarted', {
         gameId,
         opponentName: playerNames.get(req.playerToken) || 'Anonymous',
         playerIndex: 1,
-        timeControl: req.timeControl
+        timeControl: req.timeControl,
+        lang: req.lang
       });
 
       sendGameState(g);
@@ -340,7 +358,7 @@ io.on('connection', (socket) => {
     if (!g || g.phase === 'finished') return;
 
     const { startRow, startCol, direction, word } = data;
-    const result = game.performPlaceWord(g, playerToken, startRow, startCol, direction, word, dawg);
+    const result = game.performPlaceWord(g, playerToken, startRow, startCol, direction, word, getDawg(g.lang));
     if (handleActionResult(result, gameId, g)) return;
 
     // Notify both players
