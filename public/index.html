@@ -721,7 +721,7 @@
     <div class="game-over-banner" id="gameOverBanner"></div>
 
     <div class="panel">
-      <div class="panel-title">Clock</div>
+      <div class="panel-title" id="panelClock">Clock</div>
       <div class="clocks">
         <div class="clock-box" id="myClockBox">
           <div class="clock-name" id="myClockName">You</div>
@@ -735,7 +735,7 @@
     </div>
 
     <div class="panel">
-      <div class="panel-title">Score</div>
+      <div class="panel-title" id="panelScore">Score</div>
       <div class="scores">
         <div class="score-box" id="myScoreBox">
           <div class="sname" id="myScoreName">You</div>
@@ -753,17 +753,17 @@
     </div>
 
     <div class="panel">
-      <div class="panel-title">Status</div>
+      <div class="panel-title" id="panelStatus">Status</div>
       <div class="status-text" id="statusText">Waiting...</div>
     </div>
 
     <div class="panel">
-      <div class="panel-title">Your Rack (<span id="rackCount">0</span>/10)</div>
+      <div class="panel-title" id="panelRack">Your Rack (<span id="rackCount">0</span>/10)</div>
       <div class="rack-tiles" id="rackTiles"></div>
     </div>
 
     <div class="panel">
-      <div class="panel-title">Actions</div>
+      <div class="panel-title" id="panelActions">Actions</div>
       <div class="actions" id="actionsPanel">
         <button class="btn btn-primary" id="drawBtn" disabled>Draw Consonants</button>
         <button class="btn btn-success" id="submitBtn" disabled>Submit Word (Enter)</button>
@@ -774,12 +774,12 @@
     </div>
 
     <div class="panel">
-      <div class="panel-title">Bag (<span id="bagTotal">0</span> tiles)</div>
+      <div class="panel-title" id="panelBag">Bag (<span id="bagTotal">0</span> tiles)</div>
       <div class="bag-info" id="bagInfo"></div>
     </div>
 
     <div class="panel">
-      <div class="panel-title">Move History</div>
+      <div class="panel-title" id="panelHistory">Move History</div>
       <div class="history-list" id="historyList"></div>
     </div>
   </div>
@@ -814,6 +814,162 @@ function getLetterValue(ch) {
 }
 
 function isConsonant(ch) { return getConsonants().has(ch); }
+
+// ─── Translations ──────────────────────────────────────────────────────────────
+const I18N = {
+  en: {
+    // Panels
+    clock: 'Clock', score: 'Score', status: 'Status', actions: 'Actions',
+    rack_title: n => `Your Rack (${n}/10)`,
+    bag_title: n => `Bag (${n} tiles)`,
+    move_history: 'Move History',
+    // Buttons
+    draw_btn: 'Draw Consonants', submit_btn: 'Submit Word (Enter)',
+    no_words_btn: 'No Words', pass_btn: 'Pass (Forfeit)',
+    clear_btn: 'Clear Move (Esc)',
+    vkb_submit: 'SUBMIT', vkb_clear: 'CLEAR',
+    // Status
+    game_over: 'Game Over',
+    opp_turn: "Opponent's turn \u2014 please wait.",
+    click_draw: 'Click "Draw Consonants" to start your turn.',
+    opp_passed: 'Opponent has passed. You must play a word or pass.',
+    no_draw: 'No consonants drawn. You must play a word or pass.',
+    click_square: 'Click a square to place a word, or choose an action.',
+    // Toasts
+    drew: letters => `Drew: ${letters}`,
+    rack_full_skip: 'Rack full \u2014 draw skipped',
+    opp_played: (w, s) => `Opponent played ${w} for +${s}`,
+    you_played: (w, s) => `You played ${w} for +${s}!`,
+    not_on_rack: l => `${l} is not available on your rack`,
+    not_in_bag: l => `${l} is not available in the bag`,
+    opp_reconnected: 'Opponent reconnected',
+    opp_disconnected: 'Opponent disconnected. They have 25 seconds to reconnect...',
+    // History
+    you: 'You', opp: 'Opp',
+    hist_pass: 'PASS', hist_no_words: 'NO WORDS',
+    hist_disconnect: 'DISCONNECTED', hist_timeout: 'TIME OUT',
+    // Game over
+    you_win: 'You Win!', you_lose: 'You Lose', draw_result: 'Draw!',
+    reason_disconnect_win: 'Opponent disconnected.',
+    reason_disconnect_lose: 'You disconnected.',
+    reason_timeout_win: 'Opponent ran out of time.',
+    reason_timeout_lose: 'You ran out of time.',
+    back_to_lobby: 'Back to Lobby',
+    // Confirm dialogs
+    confirm_no_words: 'Forfeit this turn with NO WORDS?',
+    confirm_pass: 'PASS permanently forfeits all remaining turns. Are you sure?',
+    // Error codes
+    err: {
+      WORD_LENGTH: 'Word must be between 3 and 15 letters',
+      WORD_OFF_BOARD: 'Word goes off the board',
+      WORD_END_ADJACENT: 'Word does not end properly \u2014 adjacent tile',
+      WORD_START_ADJACENT: 'Word does not start properly \u2014 adjacent tile',
+      BOARD_CONFLICT: e => `Conflict at (${e.row}, ${e.col}): board has ${e.boardLetter}, word has ${e.wordLetter}`,
+      MIN_TWO_TILES: 'Must place at least 2 new tiles',
+      CONSONANT_NOT_ON_RACK: e => `Consonant ${e.letter} not on your rack`,
+      VOWEL_NOT_IN_BAG: e => `Vowel ${e.letter} not available in the bag`,
+      NOT_IN_DICTIONARY: e => `"${e.word}" is not in the dictionary`,
+      WORD_ALREADY_PLAYED: e => `"${e.word}" has already been played`,
+      MUST_CONNECT: 'Word must connect to existing tiles',
+      SECONDARY_TOO_SHORT: e => `Secondary word "${e.word}" is less than 3 letters`,
+      SECONDARY_TOO_LONG: e => `Secondary word "${e.word}" exceeds 15 letters`,
+      SECONDARY_NOT_IN_DICT: e => `Secondary word "${e.word}" is not in the dictionary`,
+      NOT_DRAW_PHASE: 'Not in draw phase',
+      NOT_YOUR_TURN: 'Not your turn',
+      ALREADY_DREW: 'Already drew this turn',
+      NOT_ACTION_PHASE: 'Not in action phase',
+      NO_WORDS_AFTER_PASS: 'Cannot declare NO WORDS after opponent has passed',
+      NO_WORDS_NO_DRAW: 'Cannot declare NO WORDS \u2014 no consonants drawn',
+      TIMEOUT: 'Time expired'
+    }
+  },
+  fr: {
+    // Panels
+    clock: 'Pendule', score: 'Score', status: '\u00C9tat', actions: 'Actions',
+    rack_title: n => `Votre chevalet (${n}/10)`,
+    bag_title: n => `Sac (${n} tuiles)`,
+    move_history: 'Historique',
+    // Buttons
+    draw_btn: 'Piocher des consonnes', submit_btn: 'Valider le mot (Entr\u00E9e)',
+    no_words_btn: 'Pas de mot', pass_btn: 'Passer (Abandon)',
+    clear_btn: 'Effacer (Echap)',
+    vkb_submit: 'VALIDER', vkb_clear: 'EFFACER',
+    // Status
+    game_over: 'Partie termin\u00E9e',
+    opp_turn: "Tour de l'adversaire \u2014 veuillez patienter.",
+    click_draw: 'Cliquez sur "Piocher des consonnes" pour commencer votre tour.',
+    opp_passed: "L'adversaire a pass\u00E9. Vous devez jouer un mot ou passer.",
+    no_draw: 'Aucune consonne pioch\u00E9e. Vous devez jouer un mot ou passer.',
+    click_square: 'Cliquez sur une case pour placer un mot, ou choisissez une action.',
+    // Toasts
+    drew: letters => `Pioch\u00E9 : ${letters}`,
+    rack_full_skip: 'Chevalet plein \u2014 pioche ignor\u00E9e',
+    opp_played: (w, s) => `Adversaire a jou\u00E9 ${w} pour +${s}`,
+    you_played: (w, s) => `Vous avez jou\u00E9 ${w} pour +${s}\u00A0!`,
+    not_on_rack: l => `${l} n'est pas sur votre chevalet`,
+    not_in_bag: l => `${l} n'est pas disponible dans le sac`,
+    opp_reconnected: 'Adversaire reconnect\u00E9',
+    opp_disconnected: "L'adversaire s'est d\u00E9connect\u00E9. Il a 25 secondes pour revenir...",
+    // History
+    you: 'Vous', opp: 'Adv',
+    hist_pass: 'PASSE', hist_no_words: 'PAS DE MOT',
+    hist_disconnect: 'D\u00C9CONNECT\u00C9', hist_timeout: 'TEMPS \u00C9COUL\u00C9',
+    // Game over
+    you_win: 'Vous gagnez\u00A0!', you_lose: 'Vous perdez', draw_result: '\u00C9galit\u00E9\u00A0!',
+    reason_disconnect_win: "L'adversaire s'est d\u00E9connect\u00E9.",
+    reason_disconnect_lose: 'Vous vous \u00EAtes d\u00E9connect\u00E9.',
+    reason_timeout_win: "L'adversaire a manqu\u00E9 de temps.",
+    reason_timeout_lose: 'Vous avez manqu\u00E9 de temps.',
+    back_to_lobby: 'Retour au lobby',
+    // Confirm dialogs
+    confirm_no_words: 'Renoncer \u00E0 ce tour avec PAS DE MOT\u00A0?',
+    confirm_pass: 'PASSER abandonne tous les tours restants. \u00CAtes-vous s\u00FBr\u00A0?',
+    // Error codes
+    err: {
+      WORD_LENGTH: 'Le mot doit avoir entre 3 et 15 lettres',
+      WORD_OFF_BOARD: 'Le mot sort du plateau',
+      WORD_END_ADJACENT: 'Le mot ne se termine pas correctement \u2014 tuile adjacente',
+      WORD_START_ADJACENT: 'Le mot ne commence pas correctement \u2014 tuile adjacente',
+      BOARD_CONFLICT: e => `Conflit en (${e.row}, ${e.col})\u00A0: le plateau a ${e.boardLetter}, le mot a ${e.wordLetter}`,
+      MIN_TWO_TILES: 'Vous devez placer au moins 2 nouvelles tuiles',
+      CONSONANT_NOT_ON_RACK: e => `La consonne ${e.letter} n'est pas sur votre chevalet`,
+      VOWEL_NOT_IN_BAG: e => `La voyelle ${e.letter} n'est pas disponible dans le sac`,
+      NOT_IN_DICTIONARY: e => `"${e.word}" n'est pas dans le dictionnaire`,
+      WORD_ALREADY_PLAYED: e => `"${e.word}" a d\u00E9j\u00E0 \u00E9t\u00E9 jou\u00E9`,
+      MUST_CONNECT: 'Le mot doit se connecter aux tuiles existantes',
+      SECONDARY_TOO_SHORT: e => `Le mot secondaire "${e.word}" fait moins de 3 lettres`,
+      SECONDARY_TOO_LONG: e => `Le mot secondaire "${e.word}" d\u00E9passe 15 lettres`,
+      SECONDARY_NOT_IN_DICT: e => `Le mot secondaire "${e.word}" n'est pas dans le dictionnaire`,
+      NOT_DRAW_PHASE: 'Pas en phase de pioche',
+      NOT_YOUR_TURN: "Ce n'est pas votre tour",
+      ALREADY_DREW: 'D\u00E9j\u00E0 pioch\u00E9 ce tour',
+      NOT_ACTION_PHASE: "Pas en phase d'action",
+      NO_WORDS_AFTER_PASS: "Impossible de d\u00E9clarer PAS DE MOT apr\u00E8s que l'adversaire a pass\u00E9",
+      NO_WORDS_NO_DRAW: 'Impossible de d\u00E9clarer PAS DE MOT \u2014 aucune consonne pioch\u00E9e',
+      TIMEOUT: 'Temps \u00E9coul\u00E9'
+    }
+  }
+};
+
+function getLang() {
+  return (gs && gs.lang === 'fr') ? 'fr' : 'en';
+}
+
+function t(key) {
+  const lang = getLang();
+  return I18N[lang][key] || I18N.en[key] || key;
+}
+
+function formatError(errObj) {
+  if (!errObj) return '';
+  if (typeof errObj === 'string') return errObj; // legacy fallback
+  const lang = getLang();
+  const errMap = I18N[lang].err || I18N.en.err;
+  const entry = errMap[errObj.code];
+  if (!entry) return errObj.code || 'Unknown error';
+  if (typeof entry === 'function') return entry(errObj);
+  return entry;
+}
 
 // ─── State ─────────────────────────────────────────────────────────────────────
 let socket;
@@ -993,14 +1149,12 @@ function renderRack() {
     div.appendChild(rv);
     rackEl.appendChild(div);
   }
-  $id('rackCount').textContent = rackCopy.length;
 }
 
 // ─── Render Bag ────────────────────────────────────────────────────────────────
 function renderBag() {
   if (!gs) return;
   const bagEl = $id('bagInfo');
-  $id('bagTotal').textContent = gs.bagTotal;
   let html = '';
   const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
   if (gs.lang === 'fr') letters.push('Ç');
@@ -1023,11 +1177,11 @@ function renderHistory() {
     const m = gs.moveHistory[i];
     const div = document.createElement('div');
     div.className = 'history-move' + (m.isMe ? ' mine' : '');
-    const who = m.isMe ? 'You' : 'Opp';
+    const who = m.isMe ? t('you') : t('opp');
     if (m.action === 'PASS') {
-      div.textContent = `${i + 1}. ${who}: PASS`;
+      div.textContent = `${i + 1}. ${who}: ${t('hist_pass')}`;
     } else if (m.action === 'NO_WORDS') {
-      div.textContent = `${i + 1}. ${who}: NO WORDS`;
+      div.textContent = `${i + 1}. ${who}: ${t('hist_no_words')}`;
     } else if (m.action === 'PLACE') {
       const colLetter = String.fromCharCode(65 + m.startCol);
       const rowNum = m.startRow + 1;
@@ -1039,10 +1193,10 @@ function renderHistory() {
         div.innerHTML += ` <span style="color:var(--text2);">[+${m.secondaryWords.join(', ')}]</span>`;
       }
     } else if (m.action === 'DISCONNECT_LOSS') {
-      div.textContent = `${i + 1}. ${who}: DISCONNECTED`;
+      div.textContent = `${i + 1}. ${who}: ${t('hist_disconnect')}`;
       div.style.color = 'var(--red)';
     } else if (m.action === 'TIMEOUT_LOSS') {
-      div.textContent = `${i + 1}. ${who}: TIME OUT`;
+      div.textContent = `${i + 1}. ${who}: ${t('hist_timeout')}`;
       div.style.color = 'var(--red)';
     }
     el.appendChild(div);
@@ -1069,21 +1223,21 @@ function renderStatus() {
   el.className = 'status-text';
 
   if (gs.phase === 'finished') {
-    el.textContent = 'Game Over';
+    el.textContent = t('game_over');
   } else if (!gs.isMyTurn) {
-    el.textContent = "Opponent's turn — please wait.";
+    el.textContent = t('opp_turn');
   } else if (gs.phase === 'draw' && !gs.drawDone) {
-    el.textContent = 'Click "Draw Consonants" to start your turn.';
+    el.textContent = t('click_draw');
     el.classList.add('highlight');
   } else if (gs.phase === 'action') {
     if (gs.opponentPassed) {
-      el.textContent = 'Opponent has passed. You must play a word or pass.';
+      el.textContent = t('opp_passed');
       el.classList.add('highlight');
     } else if (gs.drewCount === 0) {
-      el.textContent = 'No consonants drawn. You must play a word or pass.';
+      el.textContent = t('no_draw');
       el.classList.add('highlight');
     } else {
-      el.textContent = 'Click a square to place a word, or choose an action.';
+      el.textContent = t('click_square');
       el.classList.add('highlight');
     }
   }
@@ -1167,9 +1321,44 @@ function stopClockInterval() {
   }
 }
 
+// ─── Render Labels (translations) ──────────────────────────────────────────────
+function renderLabels() {
+  // Panel titles
+  $id('panelClock').textContent = t('clock');
+  $id('panelScore').textContent = t('score');
+  $id('panelStatus').textContent = t('status');
+  $id('panelActions').textContent = t('actions');
+  $id('panelHistory').textContent = t('move_history');
+
+  // Rack title (dynamic with count)
+  const rackCount = gs ? gs.myRack.length : 0;
+  $id('panelRack').innerHTML = t('rack_title')(rackCount);
+
+  // Bag title (dynamic with count)
+  const bagTotal = gs ? gs.bagTotal : 0;
+  $id('panelBag').innerHTML = t('bag_title')(bagTotal);
+
+  // Buttons
+  drawBtn.textContent = t('draw_btn');
+  submitBtn.textContent = t('submit_btn');
+  noWordsBtn.textContent = t('no_words_btn');
+  passBtn.textContent = t('pass_btn');
+  clearBtn.textContent = t('clear_btn');
+
+  // Virtual keyboard action keys
+  const vkbSubmit = document.querySelector('.enter-key');
+  const vkbClear = document.querySelector('.esc-key');
+  if (vkbSubmit) vkbSubmit.textContent = t('vkb_submit');
+  if (vkbClear) vkbClear.textContent = t('vkb_clear');
+
+  // Disconnect banner
+  disconnectBanner.textContent = t('opp_disconnected');
+}
+
 // ─── Full Render ───────────────────────────────────────────────────────────────
 function renderAll() {
   syncClocks();
+  renderLabels();
   renderBoard();
   renderRack();
   renderBag();
@@ -1259,7 +1448,7 @@ function handleKeyInput(key) {
       if (idx !== -1) rackCopy.splice(idx, 1);
     }
     if (!rackCopy.includes(key)) {
-      showToast(`${key} is not available on your rack`, 'error');
+      showToast(t('not_on_rack')(key), 'error');
       return;
     }
   } else if (VOWELS.has(key)) {
@@ -1270,7 +1459,7 @@ function handleKeyInput(key) {
       bagCopy[uv] = (bagCopy[uv] || 0) - 1;
     }
     if ((bagCopy[key] || 0) <= 0) {
-      showToast(`${key} is not available in the bag`, 'error');
+      showToast(t('not_in_bag')(key), 'error');
       return;
     }
   }
@@ -1454,22 +1643,22 @@ function connectSocket() {
 
   socket.on('drawResult', (data) => {
     if (data.drawn.length > 0) {
-      showToast(`Drew: ${data.drawn.join(', ')}`, 'success');
+      showToast(t('drew')(data.drawn.join(', ')), 'success');
     } else {
-      showToast('Rack full — draw skipped', '');
+      showToast(t('rack_full_skip'), '');
     }
   });
 
   socket.on('wordPlaced', (data) => {
     if (data.playedBy === 'opponent') {
-      showToast(`Opponent played ${data.principalWord} for +${data.score}`, '');
+      showToast(t('opp_played')(data.principalWord, data.score), '');
     } else {
-      showToast(`You played ${data.principalWord} for +${data.score}!`, 'success');
+      showToast(t('you_played')(data.principalWord, data.score), 'success');
     }
   });
 
   socket.on('actionError', (data) => {
-    showToast(data.message, 'error');
+    showToast(formatError(data), 'error');
   });
 
   socket.on('error', (data) => {
@@ -1482,7 +1671,7 @@ function connectSocket() {
 
   socket.on('opponentReconnected', () => {
     disconnectBanner.classList.remove('show');
-    showToast('Opponent reconnected', 'success');
+    showToast(t('opp_reconnected'), 'success');
   });
 
   socket.on('gameOver', (data) => {
@@ -1561,21 +1750,21 @@ function renderLobby(list) {
 function showGameOver(data) {
   let title, color;
   if (data.result.isDraw) {
-    title = 'Draw!';
+    title = t('draw_result');
     color = 'var(--text)';
   } else if (data.result.isWinner) {
-    title = 'You Win!';
+    title = t('you_win');
     color = 'var(--green)';
   } else {
-    title = 'You Lose';
+    title = t('you_lose');
     color = 'var(--red)';
   }
 
   let reason = '';
   if (data.result.reason === 'disconnect') {
-    reason = data.result.isWinner ? 'Opponent disconnected.' : 'You disconnected.';
+    reason = data.result.isWinner ? t('reason_disconnect_win') : t('reason_disconnect_lose');
   } else if (data.result.reason === 'timeout') {
-    reason = data.result.isWinner ? 'Opponent ran out of time.' : 'You ran out of time.';
+    reason = data.result.isWinner ? t('reason_timeout_win') : t('reason_timeout_lose');
   }
 
   gameOverBanner.style.borderColor = color;
@@ -1585,7 +1774,7 @@ function showGameOver(data) {
     <div class="final-scores">
       ${playerName}: ${data.myScore} — ${opponentName}: ${data.opponentScore}
     </div>
-    <button class="btn btn-primary" onclick="returnToLobby()">Back to Lobby</button>
+    <button class="btn btn-primary" onclick="returnToLobby()">${t('back_to_lobby')}</button>
   `;
   gameOverBanner.classList.add('show');
 }
@@ -1644,10 +1833,10 @@ cancelRequestBtn.addEventListener('click', () => {
 drawBtn.addEventListener('click', () => { socket.emit('draw'); });
 submitBtn.addEventListener('click', () => { submitMove(); });
 noWordsBtn.addEventListener('click', () => {
-  if (confirm('Forfeit this turn with NO WORDS?')) socket.emit('noWords');
+  if (confirm(t('confirm_no_words'))) socket.emit('noWords');
 });
 passBtn.addEventListener('click', () => {
-  if (confirm('PASS permanently forfeits all remaining turns. Are you sure?')) socket.emit('pass');
+  if (confirm(t('confirm_pass'))) socket.emit('pass');
 });
 clearBtn.addEventListener('click', () => { clearTypedTiles(); });
 

@@ -282,12 +282,12 @@ io.on('connection', (socket) => {
 
   // Helper: if an action returns timeout error, finish the game by timeout
   function handleActionResult(result, gameId, g) {
-    if (result.error === 'timeout') {
-      finishGameByTimeout(gameId, game.getCurrentPlayer(g));
-      return true; // handled
-    }
     if (result.error) {
-      socket.emit('actionError', { message: result.error });
+      if (result.error.code === 'TIMEOUT') {
+        finishGameByTimeout(gameId, game.getCurrentPlayer(g));
+        return true;
+      }
+      socket.emit('actionError', result.error);
       return true; // handled (error)
     }
     return false; // no error, continue

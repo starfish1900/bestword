@@ -227,7 +227,7 @@ function placeInitialWords(board, bag, dawg) {
 // Returns: { valid, error, principalWord, secondaryWords, totalScore, consonantsUsed, vowelsUsed, newTiles }
 function validateMove(board, rack, bag, dawg, startRow, startCol, direction, word, playedPrincipalWords, lang) {
   if (!word || word.length < 3 || word.length > 15) {
-    return { valid: false, error: 'Word must be between 3 and 15 letters long' };
+    return { valid: false, error: { code: 'WORD_LENGTH' } };
   }
 
   // Determine positions of each letter in the word
@@ -235,7 +235,7 @@ function validateMove(board, rack, bag, dawg, startRow, startCol, direction, wor
   let r = startRow, c = startCol;
   for (let i = 0; i < word.length; i++) {
     if (r < 0 || r >= 15 || c < 0 || c >= 15) {
-      return { valid: false, error: 'Word goes off the board' };
+      return { valid: false, error: { code: 'WORD_OFF_BOARD' } };
     }
     positions.push({ row: r, col: c, letter: word[i] });
     if (direction === 'H') c++; else r++;
@@ -243,18 +243,18 @@ function validateMove(board, rack, bag, dawg, startRow, startCol, direction, wor
 
   // Check that end of word is not followed by an occupied square
   if (direction === 'H' && c < 15 && board[positions[positions.length - 1].row][c] !== null) {
-    return { valid: false, error: 'Word does not end properly - adjacent tile exists' };
+    return { valid: false, error: { code: 'WORD_END_ADJACENT' } };
   }
   if (direction === 'V' && r < 15 && board[r][positions[positions.length - 1].col] !== null) {
-    return { valid: false, error: 'Word does not end properly - adjacent tile exists' };
+    return { valid: false, error: { code: 'WORD_END_ADJACENT' } };
   }
 
   // Check that start of word is not preceded by an occupied square
   if (direction === 'H' && startCol > 0 && board[startRow][startCol - 1] !== null) {
-    return { valid: false, error: 'Word does not start properly - adjacent tile exists before start' };
+    return { valid: false, error: { code: 'WORD_START_ADJACENT' } };
   }
   if (direction === 'V' && startRow > 0 && board[startRow - 1][startCol] !== null) {
-    return { valid: false, error: 'Word does not start properly - adjacent tile exists before start' };
+    return { valid: false, error: { code: 'WORD_START_ADJACENT' } };
   }
 
   // Identify new tiles (positions where board is empty) and verify existing tiles match
@@ -265,14 +265,14 @@ function validateMove(board, rack, bag, dawg, startRow, startCol, direction, wor
       newTiles.push(pos);
     } else {
       if (board[pos.row][pos.col] !== pos.letter) {
-        return { valid: false, error: `Conflict at (${pos.row + 1}, ${String.fromCharCode(65 + pos.col)}): board has ${board[pos.row][pos.col]}, word has ${pos.letter}` };
+        return { valid: false, error: { code: 'BOARD_CONFLICT', row: pos.row + 1, col: String.fromCharCode(65 + pos.col), boardLetter: board[pos.row][pos.col], wordLetter: pos.letter } };
       }
       existingTiles.push(pos);
     }
   }
 
   if (newTiles.length < 2) {
-    return { valid: false, error: 'Must place at least 2 new tiles' };
+    return { valid: false, error: { code: 'MIN_TWO_TILES' } };
   }
 
   // Separate new tiles into consonants (must come from rack) and vowels (must come from bag)
@@ -285,7 +285,7 @@ function validateMove(board, rack, bag, dawg, startRow, startCol, direction, wor
   for (const t of newConsonants) {
     const idx = rackCopy.indexOf(t.letter);
     if (idx === -1) {
-      return { valid: false, error: `Consonant ${t.letter} not on your rack` };
+      return { valid: false, error: { code: 'CONSONANT_NOT_ON_RACK', letter: t.letter } };
     }
     rackCopy.splice(idx, 1);
     consonantsUsed.push(t.letter);
@@ -296,7 +296,7 @@ function validateMove(board, rack, bag, dawg, startRow, startCol, direction, wor
   const vowelsUsed = [];
   for (const t of newVowels) {
     if ((bagCopy[t.letter] || 0) <= 0) {
-      return { valid: false, error: `Vowel ${t.letter} not available in the bag` };
+      return { valid: false, error: { code: 'VOWEL_NOT_IN_BAG', letter: t.letter } };
     }
     bagCopy[t.letter]--;
     vowelsUsed.push(t.letter);
@@ -304,12 +304,12 @@ function validateMove(board, rack, bag, dawg, startRow, startCol, direction, wor
 
   // Check principal word is in dictionary
   if (!dawg.isWord(word)) {
-    return { valid: false, error: `"${word}" is not in the dictionary` };
+    return { valid: false, error: { code: 'NOT_IN_DICTIONARY', word } };
   }
 
   // Check principal word uniqueness
   if (playedPrincipalWords.has(word)) {
-    return { valid: false, error: `"${word}" has already been played as a principal word in this game` };
+    return { valid: false, error: { code: 'WORD_ALREADY_PLAYED', word } };
   }
 
   // Must connect to existing tiles (at least one existing tile in word OR adjacent to existing tiles)
@@ -323,7 +323,7 @@ function validateMove(board, rack, bag, dawg, startRow, startCol, direction, wor
   });
 
   if (!touchesExisting) {
-    return { valid: false, error: 'Word must connect to existing tiles on the board' };
+    return { valid: false, error: { code: 'MUST_CONNECT' } };
   }
 
   // Find all secondary words (crosswords formed by new tiles)
@@ -333,13 +333,13 @@ function validateMove(board, rack, bag, dawg, startRow, startCol, direction, wor
     const crossWord = extractWord(board, t.row, t.col, crossDir, newTiles);
     if (crossWord) {
       if (crossWord.length < 3) {
-        return { valid: false, error: `Secondary word "${crossWord}" is less than 3 letters` };
+        return { valid: false, error: { code: 'SECONDARY_TOO_SHORT', word: crossWord } };
       }
       if (crossWord.length > 15) {
-        return { valid: false, error: `Secondary word "${crossWord}" exceeds 15 letters` };
+        return { valid: false, error: { code: 'SECONDARY_TOO_LONG', word: crossWord } };
       }
       if (!dawg.isWord(crossWord)) {
-        return { valid: false, error: `Secondary word "${crossWord}" is not in the dictionary` };
+        return { valid: false, error: { code: 'SECONDARY_NOT_IN_DICT', word: crossWord } };
       }
       secondaryWords.push(crossWord);
     }
@@ -504,12 +504,12 @@ function checkTimeout(game) {
 
 // Perform the mandatory draw phase
 function performDraw(game, playerToken) {
-  if (game.phase !== 'draw') return { error: 'Not in draw phase' };
-  if (getCurrentPlayer(game) !== playerToken) return { error: 'Not your turn' };
-  if (game.drawDone) return { error: 'Already drew this turn' };
+  if (game.phase !== 'draw') return { error: { code: 'NOT_DRAW_PHASE' } };
+  if (getCurrentPlayer(game) !== playerToken) return { error: { code: 'NOT_YOUR_TURN' } };
+  if (game.drawDone) return { error: { code: 'ALREADY_DREW' } };
 
   // Tick clock
-  if (tickClock(game) === 'timeout') return { error: 'timeout' };
+  if (tickClock(game) === 'timeout') return { error: { code: 'TIMEOUT' } };
 
   const player = game.players[playerToken];
   const rackCount = player.rack.length;
@@ -566,9 +566,9 @@ function advanceTurn(game) {
 }
 
 function performPass(game, playerToken) {
-  if (game.phase !== 'action') return { error: 'Not in action phase' };
-  if (getCurrentPlayer(game) !== playerToken) return { error: 'Not your turn' };
-  if (tickClock(game) === 'timeout') return { error: 'timeout' };
+  if (game.phase !== 'action') return { error: { code: 'NOT_ACTION_PHASE' } };
+  if (getCurrentPlayer(game) !== playerToken) return { error: { code: 'NOT_YOUR_TURN' } };
+  if (tickClock(game) === 'timeout') return { error: { code: 'TIMEOUT' } };
 
   const player = game.players[playerToken];
   player.passed = true;
@@ -579,19 +579,19 @@ function performPass(game, playerToken) {
 }
 
 function performNoWords(game, playerToken) {
-  if (game.phase !== 'action') return { error: 'Not in action phase' };
-  if (getCurrentPlayer(game) !== playerToken) return { error: 'Not your turn' };
-  if (tickClock(game) === 'timeout') return { error: 'timeout' };
+  if (game.phase !== 'action') return { error: { code: 'NOT_ACTION_PHASE' } };
+  if (getCurrentPlayer(game) !== playerToken) return { error: { code: 'NOT_YOUR_TURN' } };
+  if (tickClock(game) === 'timeout') return { error: { code: 'TIMEOUT' } };
 
   // Check if opponent has passed - if so, cannot declare NO WORDS
   const opponent = getOpponent(game, playerToken);
   if (game.players[opponent].passed) {
-    return { error: 'Cannot declare NO WORDS after opponent has passed. You must play a word or PASS.' };
+    return { error: { code: 'NO_WORDS_AFTER_PASS' } };
   }
 
   // If player drew 0 consonants this turn (bag empty or rack was full), cannot declare NO WORDS
   if (game.drewCount === 0) {
-    return { error: 'Cannot declare NO WORDS when you did not draw any consonants. You must play a word or PASS.' };
+    return { error: { code: 'NO_WORDS_NO_DRAW' } };
   }
 
   game.moveHistory.push({ player: playerToken, action: 'NO_WORDS' });
@@ -600,9 +600,9 @@ function performNoWords(game, playerToken) {
 }
 
 function performPlaceWord(game, playerToken, startRow, startCol, direction, word, dawg) {
-  if (game.phase !== 'action') return { error: 'Not in action phase' };
-  if (getCurrentPlayer(game) !== playerToken) return { error: 'Not your turn' };
-  if (tickClock(game) === 'timeout') return { error: 'timeout' };
+  if (game.phase !== 'action') return { error: { code: 'NOT_ACTION_PHASE' } };
+  if (getCurrentPlayer(game) !== playerToken) return { error: { code: 'NOT_YOUR_TURN' } };
+  if (tickClock(game) === 'timeout') return { error: { code: 'TIMEOUT' } };
 
   const player = game.players[playerToken];
 
