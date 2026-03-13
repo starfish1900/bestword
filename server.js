@@ -194,7 +194,7 @@ io.on('connection', (socket) => {
       return;
     }
     // Parse time control
-    const validMinutes = [5, 15, 25];
+    const validMinutes = [5, 15, 25, 35];
     const minutes = (data && validMinutes.includes(data.minutes)) ? data.minutes : 15;
     const timeControl = { minutes, increment: 30 };
 

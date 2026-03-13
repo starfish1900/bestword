@@ -648,9 +648,10 @@
     <h2 style="font-family:'DM Serif Display',serif; font-size:24px;">Game Lobby</h2>
     <span class="tc-label">Time:</span>
     <select class="tc-select" id="tcSelect">
-      <option value="5">5+30</option>
-      <option value="15" selected>15+30</option>
-      <option value="25">25+30</option>
+      <option value="5">5'+30"</option>
+      <option value="15" selected>15'+30"</option>
+      <option value="25">25'+30"</option>
+      <option value="35">35'+30"</option>
     </select>
     <span class="tc-label">Lang:</span>
     <select class="tc-select" id="langSelect">
@@ -1714,7 +1715,7 @@ function renderLobby(list) {
     if (req.timeControl) {
       const tcTag = document.createElement('span');
       tcTag.className = 'lobby-item-tc';
-      tcTag.textContent = `${req.timeControl.minutes}+${req.timeControl.increment}`;
+      tcTag.textContent = `${req.timeControl.minutes}'+${req.timeControl.increment}"`;
       item.appendChild(tcTag);
     }
 
