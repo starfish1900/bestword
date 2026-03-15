@@ -55,7 +55,7 @@ function emitToPlayer(playerToken, event, data) {
 function broadcastLobby() {
   const list = [];
   for (const [reqId, req] of lobby) {
-    list.push({ requestId: reqId, playerName: req.playerName, createdAt: req.createdAt, timeControl: req.timeControl, lang: req.lang });
+    list.push({ requestId: reqId, playerName: req.playerName, createdAt: req.createdAt, timeControl: req.timeControl, lang: req.lang, bridgeScoring: req.bridgeScoring });
   }
   io.emit('lobbyUpdate', list);
 }
@@ -201,6 +201,9 @@ io.on('connection', (socket) => {
     // Parse language
     const lang = (data && data.lang === 'fr') ? 'fr' : 'en';
 
+    // Parse bridge scoring
+    const bridgeScoring = !!(data && data.bridgeScoring);
+
     const requestId = uuidv4();
     lobby.set(requestId, {
       playerToken,
@@ -208,7 +211,8 @@ io.on('connection', (socket) => {
       requestId,
       createdAt: Date.now(),
       timeControl,
-      lang
+      lang,
+      bridgeScoring
     });
     broadcastLobby();
   });
@@ -250,7 +254,7 @@ io.on('connection', (socket) => {
     // Create game
     const gameId = uuidv4();
     try {
-      const g = game.createGame(gameId, req.playerToken, req.playerName, getDawg(req.lang), req.timeControl, req.lang);
+      const g = game.createGame(gameId, req.playerToken, req.playerName, getDawg(req.lang), req.timeControl, req.lang, req.bridgeScoring);
       game.addPlayer(g, playerToken, playerNames.get(playerToken) || 'Anonymous');
       games.set(gameId, g);
       playerGames.set(req.playerToken, gameId);
@@ -261,14 +265,16 @@ io.on('connection', (socket) => {
         opponentName: playerNames.get(playerToken) || 'Anonymous',
         playerIndex: 0,
         timeControl: req.timeControl,
-        lang: req.lang
+        lang: req.lang,
+        bridgeScoring: req.bridgeScoring
       });
       socket.emit('gameStarted', {
         gameId,
         opponentName: playerNames.get(req.playerToken) || 'Anonymous',
         playerIndex: 1,
         timeControl: req.timeControl,
-        lang: req.lang
+        lang: req.lang,
+        bridgeScoring: req.bridgeScoring
       });
 
       sendGameState(g);

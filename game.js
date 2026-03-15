@@ -113,8 +113,8 @@ function createBoard() {
   return board;
 }
 
-// Score a principal word: (sum of letter values) * (number of consonants in word)
-function scorePrincipalWord(word, lang) {
+// Score a principal word: (sum of letter values) * (number of consonants in word + n_spans)
+function scorePrincipalWord(word, lang, nSpans) {
   const cfg = getLangConfig(lang);
   let valueSum = 0;
   let consonantCount = 0;
@@ -122,17 +122,43 @@ function scorePrincipalWord(word, lang) {
     valueSum += (cfg.letterValues[ch] || 0);
     if (cfg.consonants.has(ch)) consonantCount++;
   }
-  return valueSum * consonantCount;
+  return valueSum * (consonantCount + (nSpans || 0));
 }
 
-// Score a secondary word: sum of letter values only
-function scoreSecondaryWord(word, lang) {
+// Score a secondary word: if bridge (sum of values * 2), else (sum of values)
+function scoreSecondaryWord(word, lang, isBridge) {
   const cfg = getLangConfig(lang);
   let valueSum = 0;
   for (const ch of word) {
     valueSum += (cfg.letterValues[ch] || 0);
   }
-  return valueSum;
+  return isBridge ? valueSum * 2 : valueSum;
+}
+
+// Compute bridge spans for a word given its positions.
+// board is the ORIGINAL board (before new tiles).
+// Returns n_spans (0 = not a bridge).
+function computeBridgeSpans(board, positions) {
+  // Find first and last preexisting (already on board) positions
+  let firstPillar = -1;
+  let lastPillar = -1;
+  for (let i = 0; i < positions.length; i++) {
+    const { row, col } = positions[i];
+    if (board[row][col] !== null) {
+      if (firstPillar === -1) firstPillar = i;
+      lastPillar = i;
+    }
+  }
+  // Need at least two preexisting squares
+  if (firstPillar === -1 || firstPillar === lastPillar) return 0;
+
+  // Count empty squares (spans) between first and last pillar
+  let spans = 0;
+  for (let i = firstPillar + 1; i < lastPillar; i++) {
+    const { row, col } = positions[i];
+    if (board[row][col] === null) spans++;
+  }
+  return spans;
 }
 
 // Place initial crossing words on the board
@@ -225,7 +251,7 @@ function placeInitialWords(board, bag, dawg) {
 // Validate a move: startRow, startCol, direction ('H' or 'V'), word (full word string)
 // newTiles: array of {row, col, letter} - the tiles the player is placing
 // Returns: { valid, error, principalWord, secondaryWords, totalScore, consonantsUsed, vowelsUsed, newTiles }
-function validateMove(board, rack, bag, dawg, startRow, startCol, direction, word, playedPrincipalWords, lang) {
+function validateMove(board, rack, bag, dawg, startRow, startCol, direction, word, playedPrincipalWords, lang, bridgeScoring) {
   if (!word || word.length < 3 || word.length > 15) {
     return { valid: false, error: { code: 'WORD_LENGTH' } };
   }
@@ -328,27 +354,33 @@ function validateMove(board, rack, bag, dawg, startRow, startCol, direction, wor
 
   // Find all secondary words (crosswords formed by new tiles)
   const secondaryWords = [];
+  const secondaryBridgeInfo = []; // parallel array: { word, positions, nSpans }
   for (const t of newTiles) {
     const crossDir = direction === 'H' ? 'V' : 'H';
-    const crossWord = extractWord(board, t.row, t.col, crossDir, newTiles);
-    if (crossWord) {
-      if (crossWord.length < 3) {
-        return { valid: false, error: { code: 'SECONDARY_TOO_SHORT', word: crossWord } };
+    const crossResult = extractWord(board, t.row, t.col, crossDir, newTiles);
+    if (crossResult) {
+      const cw = crossResult.word;
+      if (cw.length < 3) {
+        return { valid: false, error: { code: 'SECONDARY_TOO_SHORT', word: cw } };
       }
-      if (crossWord.length > 15) {
-        return { valid: false, error: { code: 'SECONDARY_TOO_LONG', word: crossWord } };
+      if (cw.length > 15) {
+        return { valid: false, error: { code: 'SECONDARY_TOO_LONG', word: cw } };
       }
-      if (!dawg.isWord(crossWord)) {
-        return { valid: false, error: { code: 'SECONDARY_NOT_IN_DICT', word: crossWord } };
+      if (!dawg.isWord(cw)) {
+        return { valid: false, error: { code: 'SECONDARY_NOT_IN_DICT', word: cw } };
       }
-      secondaryWords.push(crossWord);
+      const nSpans = bridgeScoring ? computeBridgeSpans(board, crossResult.positions) : 0;
+      secondaryWords.push(cw);
+      secondaryBridgeInfo.push({ word: cw, nSpans });
     }
   }
 
   // Calculate score
-  let totalScore = scorePrincipalWord(word, lang);
-  for (const sw of secondaryWords) {
-    totalScore += scoreSecondaryWord(sw, lang);
+  const principalSpans = bridgeScoring ? computeBridgeSpans(board, positions) : 0;
+  let totalScore = scorePrincipalWord(word, lang, principalSpans);
+  for (let i = 0; i < secondaryWords.length; i++) {
+    const isBridge = secondaryBridgeInfo[i].nSpans > 0;
+    totalScore += scoreSecondaryWord(secondaryWords[i], lang, isBridge);
   }
 
   return {
@@ -365,6 +397,7 @@ function validateMove(board, rack, bag, dawg, startRow, startCol, direction, wor
 
 // Extract the full word in a given direction that passes through (row, col)
 // considering both existing board tiles and newTiles
+// Returns { word, positions } or null
 function extractWord(board, row, col, direction, newTiles) {
   const newTileMap = new Map();
   for (const t of newTiles) {
@@ -386,20 +419,22 @@ function extractWord(board, row, col, direction, newTiles) {
     while (sr > 0 && getCell(sr - 1, sc) !== null) sr--;
   }
 
-  // Read word
+  // Read word and positions
   let word = '';
+  const positions = [];
   let r = sr, c = sc;
   while (r < 15 && c < 15 && getCell(r, c) !== null) {
     word += getCell(r, c);
+    positions.push({ row: r, col: c });
     if (direction === 'H') c++; else r++;
   }
 
   // Only return if it's more than 1 letter (the tile itself)
-  return word.length > 1 ? word : null;
+  return word.length > 1 ? { word, positions } : null;
 }
 
 // Create a new game state
-function createGame(gameId, player1Token, player1Name, dawg, timeControl, lang) {
+function createGame(gameId, player1Token, player1Name, dawg, timeControl, lang, bridgeScoring) {
   const gameLang = (lang === 'fr') ? 'fr' : 'en';
   const bag = createBag(gameLang);
   const board = createBoard();
@@ -414,6 +449,7 @@ function createGame(gameId, player1Token, player1Name, dawg, timeControl, lang) 
     board,
     bag,
     lang: gameLang,
+    bridgeScoring: !!bridgeScoring,
     players: {
       [player1Token]: {
         rack: [],
@@ -609,7 +645,7 @@ function performPlaceWord(game, playerToken, startRow, startCol, direction, word
   const result = validateMove(
     game.board, player.rack, game.bag, dawg,
     startRow, startCol, direction, word.toUpperCase(),
-    game.playedPrincipalWords, game.lang
+    game.playedPrincipalWords, game.lang, game.bridgeScoring
   );
 
   if (!result.valid) return { error: result.error };
@@ -715,7 +751,8 @@ function getGameState(game, playerToken) {
     timeControl: game.timeControl,
     serverTime: Date.now(),
     lang: game.lang,
-    letterValues: getLangConfig(game.lang).letterValues
+    letterValues: getLangConfig(game.lang).letterValues,
+    bridgeScoring: game.bridgeScoring
   };
 }
 
@@ -725,5 +762,6 @@ module.exports = {
   placeInitialWords, validateMove, createGame, addPlayer,
   getCurrentPlayer, getOpponent, performDraw, advanceTurn,
   performPass, performNoWords, performPlaceWord,
-  getGameResult, getGameState, consonantsInBag, checkTimeout
+  getGameResult, getGameState, consonantsInBag, checkTimeout,
+  computeBridgeSpans
 };

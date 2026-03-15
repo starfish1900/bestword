@@ -658,6 +658,11 @@
       <option value="en" selected>English</option>
       <option value="fr">Français</option>
     </select>
+    <span class="tc-label">Bridges:</span>
+    <select class="tc-select" id="bridgeSelect">
+      <option value="no" selected>No</option>
+      <option value="yes">Yes</option>
+    </select>
     <button class="btn btn-primary" id="createRequestBtn">Create Game</button>
     <button class="btn btn-danger" id="cancelRequestBtn" style="display:none;">Cancel</button>
   </div>
@@ -751,6 +756,10 @@
 
     <div class="disconnect-banner" id="disconnectBanner">
       Opponent disconnected. They have 25 seconds to reconnect...
+    </div>
+
+    <div class="disconnect-banner" id="bridgeIndicator" style="display:none; border-color:var(--green); color:var(--green); background:rgba(76,175,125,0.10);">
+      &#x1F309; Bridge scoring active
     </div>
 
     <div class="panel">
@@ -1354,6 +1363,13 @@ function renderLabels() {
 
   // Disconnect banner
   disconnectBanner.textContent = t('opp_disconnected');
+
+  // Bridge indicator
+  const bridgeInd = $id('bridgeIndicator');
+  if (bridgeInd) {
+    bridgeInd.style.display = (gs && gs.bridgeScoring) ? 'block' : 'none';
+    bridgeInd.textContent = getLang() === 'fr' ? '\u{1F309} Scoring Ponts actif' : '\u{1F309} Bridge scoring active';
+  }
 }
 
 // ─── Full Render ───────────────────────────────────────────────────────────────
@@ -1725,6 +1741,16 @@ function renderLobby(list) {
     langTag.textContent = (req.lang || 'en').toUpperCase();
     item.appendChild(langTag);
 
+    // Bridge tag
+    if (req.bridgeScoring) {
+      const bridgeTag = document.createElement('span');
+      bridgeTag.className = 'lobby-item-tc';
+      bridgeTag.style.color = 'var(--green)';
+      bridgeTag.style.background = 'rgba(76, 175, 125, 0.12)';
+      bridgeTag.textContent = '\u{1F309}';
+      item.appendChild(bridgeTag);
+    }
+
     // Only show Join button if it's not our own request
     if (!myRequestActive || req.playerName !== playerName) {
       const joinBtn = document.createElement('button');
@@ -1816,7 +1842,8 @@ nameInput.addEventListener('keydown', (e) => {
 createRequestBtn.addEventListener('click', () => {
   const minutes = parseInt($id('tcSelect').value) || 15;
   const lang = $id('langSelect').value || 'en';
-  socket.emit('createRequest', { minutes, lang });
+  const bridgeScoring = $id('bridgeSelect').value === 'yes';
+  socket.emit('createRequest', { minutes, lang, bridgeScoring });
   myRequestActive = true;
   createRequestBtn.style.display = 'none';
   cancelRequestBtn.style.display = '';
