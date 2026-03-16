@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>BestWord</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=IBM+Plex+Mono:wght@400;600&family=Manrope:wght@300;400;600;700;800&display=swap');
@@ -613,13 +613,122 @@
   .vkb-key.bksp-key { background: var(--tile-bg); }
   .vkb-key.esc-key { background: var(--red); color: #fff; }
 
-  /* Responsive */
+  /* ─── Responsive: Tablet (≤900px) ──────────── */
   @media (max-width: 900px) {
-    #gameScreen { flex-direction: column; align-items: center; }
+    #gameScreen { flex-direction: column; align-items: center; padding: 10px; gap: 10px; }
     .sidebar { width: 100%; max-width: 560px; }
     .cell { width: 30px; height: 30px; font-size: 13px; }
     .col-labels span { width: 30px; }
-    .row-label { height: 30px; }
+    .col-labels { margin-left: 22px; }
+    .row-label { width: 22px; height: 30px; font-size: 10px; }
+    .cell .arrow { font-size: 18px; }
+    .lobby-header { flex-wrap: wrap; justify-content: center; gap: 10px; }
+  }
+
+  /* ─── Responsive: Phone (≤480px) ──────────── */
+  @media (max-width: 480px) {
+    header { padding: 8px 12px; }
+    .logo { font-size: 20px; letter-spacing: 1px; }
+    .player-name-display { font-size: 11px; }
+
+    #welcomeScreen { padding: 24px 16px; gap: 16px; }
+    #welcomeScreen h2 { font-size: 28px; }
+    #welcomeScreen p { font-size: 14px; }
+    .name-input { width: 220px; font-size: 14px; padding: 10px 16px; }
+
+    #lobbyScreen { padding: 20px 10px; gap: 16px; }
+    .lobby-header { flex-wrap: wrap; justify-content: center; gap: 8px; }
+    .lobby-header h2 { font-size: 20px !important; width: 100%; text-align: center; }
+    .tc-select { padding: 6px 8px; font-size: 12px; }
+    .tc-label { font-size: 11px; }
+    .lobby-list { padding: 12px; }
+    .lobby-item { padding: 8px 10px; flex-wrap: wrap; gap: 6px; }
+    .lobby-item-name { font-size: 13px; }
+
+    #gameScreen { padding: 4px; gap: 6px; min-height: auto; }
+
+    /* Board: 15 cells × 22px + 18px label = 348px, fits 375px screen */
+    .cell { width: 22px; height: 22px; font-size: 10px; }
+    .cell .arrow { font-size: 14px; }
+    .cell .cell-value { display: none; }
+    .col-labels span { width: 22px; font-size: 9px; }
+    .col-labels { margin-left: 18px; margin-bottom: 1px; }
+    .row-label { width: 18px; height: 22px; font-size: 9px; padding-right: 2px; }
+    .board-grid { border-radius: 4px; }
+
+    /* Sidebar compact */
+    .sidebar { gap: 6px; }
+    .panel { padding: 8px 10px; border-radius: 8px; }
+    .panel-title { font-size: 10px; margin-bottom: 6px; }
+
+    /* Clocks compact */
+    .clock-box { padding: 5px; }
+    .clock-box .clock-name { font-size: 10px; }
+    .clock-box .clock-time { font-size: 18px; }
+
+    /* Scores compact */
+    .score-box { padding: 6px; }
+    .score-box .sname { font-size: 11px; }
+    .score-box .sval { font-size: 22px; }
+
+    /* Rack */
+    .rack-tile { width: 28px; height: 28px; font-size: 12px; }
+    .rack-tile .rv { font-size: 7px; }
+
+    /* Actions: 2-column grid for buttons */
+    .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .actions .btn { font-size: 11px; padding: 8px 4px; }
+
+    /* Status */
+    .status-text { font-size: 12px; }
+
+    /* Bag */
+    .bag-info { font-size: 11px; line-height: 1.4; }
+
+    /* History */
+    .history-list { max-height: 120px; font-size: 11px; }
+
+    /* Game over banner */
+    .game-over-banner { padding: 12px 14px; }
+    .game-over-banner h2 { font-size: 22px; }
+    .game-over-banner .final-scores { font-size: 14px; }
+
+    /* Disconnect/bridge banners */
+    .disconnect-banner { font-size: 12px; padding: 8px 10px; }
+
+    /* Virtual keyboard: fit phone width */
+    .vkb { margin-top: 6px; }
+    .vkb-row { gap: 3px; margin-bottom: 3px; }
+    .vkb-key { min-width: 28px; height: 34px; font-size: 13px; }
+    .vkb-key.wide { min-width: 52px; font-size: 11px; }
+
+    /* Toast */
+    .toast { font-size: 12px; padding: 8px 16px; top: 52px; }
+  }
+
+  /* ─── Responsive: Tiny phone (≤360px) ─────── */
+  @media (max-width: 360px) {
+    .cell { width: 20px; height: 20px; font-size: 9px; }
+    .col-labels span { width: 20px; font-size: 8px; }
+    .col-labels { margin-left: 16px; }
+    .row-label { width: 16px; height: 20px; font-size: 8px; }
+    .vkb-key { min-width: 24px; height: 30px; font-size: 11px; }
+    .vkb-key.wide { min-width: 44px; font-size: 10px; }
+  }
+
+  /* ─── Touch devices: prevent sticky hover ──── */
+  @media (hover: none) {
+    .cell:hover { background: transparent; }
+    .cell.occupied:hover { background: var(--tile-bg); }
+    .cell.arrow-cell:hover { background: rgba(232, 169, 70, 0.12); }
+    .btn:hover { transform: none; }
+  }
+
+  /* Prevent unwanted touch behaviors on game area */
+  .board-container, .vkb, .sidebar {
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
   }
 </style>
 </head>
