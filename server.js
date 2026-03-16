@@ -32,6 +32,14 @@ console.log('Building French DAWG...');
 dawgs.fr = DAWG.build(wordsFr);
 console.log('French DAWG built');
 
+console.log('Loading Spanish dictionary...');
+const dictEs = fs.readFileSync(path.join(__dirname, 'dictionary_es.txt'), 'utf-8');
+const wordsEs = dictEs.split(/\r?\n/).map(w => w.trim().toUpperCase()).filter(w => w.length > 0);
+console.log(`Spanish dictionary: ${wordsEs.length} words`);
+console.log('Building Spanish DAWG...');
+dawgs.es = DAWG.build(wordsEs);
+console.log('Spanish DAWG built');
+
 function getDawg(lang) { return dawgs[lang] || dawgs.en; }
 
 // ─── State ─────────────────────────────────────────────────────────────────────
@@ -199,7 +207,7 @@ io.on('connection', (socket) => {
     const timeControl = { minutes, increment: 30 };
 
     // Parse language
-    const lang = (data && data.lang === 'fr') ? 'fr' : 'en';
+    const lang = (data && ['fr', 'es'].includes(data.lang)) ? data.lang : 'en';
 
     // Parse bridge scoring
     const bridgeScoring = !!(data && data.bridgeScoring);

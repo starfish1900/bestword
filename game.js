@@ -50,6 +50,29 @@ const LANG_CONFIG = {
       Q: 3, R: 16, S: 16, T: 16, U: 13, V: 7, W: 3, X: 3,
       Y: 6, Z: 4, 'Ç': 2
     }
+  },
+  es: {
+    vowels: VOWELS,
+    consonants: new Set(['B', 'C', 'D', 'F', 'G', 'H', 'J', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'X', 'Z', 'Ñ']),
+    letterValues: {
+      A: 1, E: 1, I: 1, O: 1,
+      U: 2, Y: 2, S: 2,
+      N: 3, R: 3,
+      T: 4, D: 4,
+      M: 5, L: 5,
+      C: 6, G: 6, H: 6,
+      P: 8, B: 8,
+      F: 9, V: 9,
+      X: 10, Z: 10,
+      J: 11, Q: 11,
+      'Ñ': 12
+    },
+    initialBag: {
+      A: 20, B: 7, C: 10, D: 10, E: 20, F: 7, G: 10, H: 10,
+      I: 20, J: 5, L: 8, M: 8, N: 16, O: 20, P: 9,
+      Q: 3, R: 16, S: 20, T: 16, U: 13, V: 7, X: 2,
+      Y: 6, Z: 3, 'Ñ': 3
+    }
   }
 };
 
@@ -435,7 +458,7 @@ function extractWord(board, row, col, direction, newTiles) {
 
 // Create a new game state
 function createGame(gameId, player1Token, player1Name, dawg, timeControl, lang, bridgeScoring) {
-  const gameLang = (lang === 'fr') ? 'fr' : 'en';
+  const gameLang = (['fr', 'es'].includes(lang)) ? lang : 'en';
   const bag = createBag(gameLang);
   const board = createBoard();
   const initResult = placeInitialWords(board, bag, dawg);

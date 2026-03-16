@@ -657,6 +657,7 @@
     <select class="tc-select" id="langSelect">
       <option value="en" selected>English</option>
       <option value="fr">Français</option>
+      <option value="es">Español</option>
     </select>
     <span class="tc-label">Bridges:</span>
     <select class="tc-select" id="bridgeSelect">
@@ -714,6 +715,7 @@
         <div class="vkb-key consonant-key" data-key="V">V</div>
         <div class="vkb-key consonant-key" data-key="B">B</div>
         <div class="vkb-key consonant-key" data-key="N">N</div>
+        <div class="vkb-key consonant-key vkb-tilde" data-key="Ñ" style="display:none;">Ñ</div>
         <div class="vkb-key consonant-key" data-key="M">M</div>
       </div>
       <div class="vkb-row">
@@ -806,6 +808,7 @@ const VOWELS = new Set(['A','E','I','O','U','Y']);
 // Default English consonants; French adds Ç
 const CONSONANTS_EN = new Set(['B','C','D','F','G','H','J','K','L','M','N','P','Q','R','S','T','V','W','X','Z']);
 const CONSONANTS_FR = new Set(['B','C','D','F','G','H','J','K','L','M','N','P','Q','R','S','T','V','W','X','Z','Ç']);
+const CONSONANTS_ES = new Set(['B','C','D','F','G','H','J','L','M','N','P','Q','R','S','T','V','X','Z','Ñ']);
 
 const LETTER_VALUES_EN = {
   A:1,E:1,I:1,O:1,U:2,Y:2,S:2,N:3,R:3,T:4,D:4,M:5,L:5,
@@ -814,7 +817,9 @@ const LETTER_VALUES_EN = {
 
 // Get the right consonant set for the current game
 function getConsonants() {
-  return (gs && gs.lang === 'fr') ? CONSONANTS_FR : CONSONANTS_EN;
+  if (gs && gs.lang === 'fr') return CONSONANTS_FR;
+  if (gs && gs.lang === 'es') return CONSONANTS_ES;
+  return CONSONANTS_EN;
 }
 
 // Get letter value from game state (server-authoritative) or fallback
@@ -958,11 +963,77 @@ const I18N = {
       NO_WORDS_NO_DRAW: 'Impossible de d\u00E9clarer PAS DE MOT \u2014 aucune consonne pioch\u00E9e',
       TIMEOUT: 'Temps \u00E9coul\u00E9'
     }
+  },
+  es: {
+    // Panels
+    clock: 'Reloj', score: 'Puntuaci\u00F3n', status: 'Estado', actions: 'Acciones',
+    rack_title: n => `Tu atril (${n}/10)`,
+    bag_title: n => `Bolsa (${n} fichas)`,
+    move_history: 'Historial',
+    // Buttons
+    draw_btn: 'Sacar consonantes', submit_btn: 'Validar palabra (Enter)',
+    no_words_btn: 'Sin palabra', pass_btn: 'Pasar (Abandonar)',
+    clear_btn: 'Borrar (Esc)',
+    vkb_submit: 'VALIDAR', vkb_clear: 'BORRAR',
+    // Status
+    game_over: 'Partida terminada',
+    opp_turn: 'Turno del oponente \u2014 por favor espera.',
+    click_draw: 'Haz clic en "Sacar consonantes" para iniciar tu turno.',
+    opp_passed: 'El oponente ha pasado. Debes jugar una palabra o pasar.',
+    no_draw: 'No se sacaron consonantes. Debes jugar una palabra o pasar.',
+    click_square: 'Haz clic en una casilla para colocar una palabra, o elige una acci\u00F3n.',
+    // Toasts
+    drew: letters => `Sacaste: ${letters}`,
+    rack_full_skip: 'Atril lleno \u2014 se omiti\u00F3 la pioche',
+    opp_played: (w, s) => `El oponente jug\u00F3 ${w} por +${s}`,
+    you_played: (w, s) => `Jugaste ${w} por +${s}\u00A0!`,
+    not_on_rack: l => `${l} no est\u00E1 en tu atril`,
+    not_in_bag: l => `${l} no est\u00E1 disponible en la bolsa`,
+    opp_reconnected: 'Oponente reconectado',
+    opp_disconnected: 'El oponente se desconect\u00F3. Tiene 25 segundos para volver...',
+    // History
+    you: 'T\u00FA', opp: 'Opo',
+    hist_pass: 'PASA', hist_no_words: 'SIN PALABRA',
+    hist_disconnect: 'DESCONECTADO', hist_timeout: 'TIEMPO AGOTADO',
+    // Game over
+    you_win: '\u00A1Ganaste!', you_lose: 'Perdiste', draw_result: '\u00A1Empate!',
+    reason_disconnect_win: 'El oponente se desconect\u00F3.',
+    reason_disconnect_lose: 'Te desconectaste.',
+    reason_timeout_win: 'El oponente se qued\u00F3 sin tiempo.',
+    reason_timeout_lose: 'Te quedaste sin tiempo.',
+    back_to_lobby: 'Volver al lobby',
+    // Confirm dialogs
+    confirm_no_words: '\u00BFRenunciar a este turno con SIN PALABRA?',
+    confirm_pass: 'PASAR abandona todos los turnos restantes. \u00BFEst\u00E1s seguro?',
+    // Error codes
+    err: {
+      WORD_LENGTH: 'La palabra debe tener entre 3 y 15 letras',
+      WORD_OFF_BOARD: 'La palabra sale del tablero',
+      WORD_END_ADJACENT: 'La palabra no termina correctamente \u2014 ficha adyacente',
+      WORD_START_ADJACENT: 'La palabra no empieza correctamente \u2014 ficha adyacente',
+      BOARD_CONFLICT: e => `Conflicto en (${e.row}, ${e.col}): el tablero tiene ${e.boardLetter}, la palabra tiene ${e.wordLetter}`,
+      MIN_TWO_TILES: 'Debes colocar al menos 2 fichas nuevas',
+      CONSONANT_NOT_ON_RACK: e => `La consonante ${e.letter} no est\u00E1 en tu atril`,
+      VOWEL_NOT_IN_BAG: e => `La vocal ${e.letter} no est\u00E1 disponible en la bolsa`,
+      NOT_IN_DICTIONARY: e => `"${e.word}" no est\u00E1 en el diccionario`,
+      WORD_ALREADY_PLAYED: e => `"${e.word}" ya se jug\u00F3 anteriormente`,
+      MUST_CONNECT: 'La palabra debe conectarse a fichas existentes',
+      SECONDARY_TOO_SHORT: e => `La palabra secundaria "${e.word}" tiene menos de 3 letras`,
+      SECONDARY_TOO_LONG: e => `La palabra secundaria "${e.word}" supera las 15 letras`,
+      SECONDARY_NOT_IN_DICT: e => `La palabra secundaria "${e.word}" no est\u00E1 en el diccionario`,
+      NOT_DRAW_PHASE: 'No es fase de pioche',
+      NOT_YOUR_TURN: 'No es tu turno',
+      ALREADY_DREW: 'Ya sacaste este turno',
+      NOT_ACTION_PHASE: 'No es fase de acci\u00F3n',
+      NO_WORDS_AFTER_PASS: 'No puedes declarar SIN PALABRA despu\u00E9s de que el oponente pas\u00F3',
+      NO_WORDS_NO_DRAW: 'No puedes declarar SIN PALABRA \u2014 no se sacaron consonantes',
+      TIMEOUT: 'Tiempo agotado'
+    }
   }
 };
 
 function getLang() {
-  return (gs && gs.lang === 'fr') ? 'fr' : 'en';
+  return (gs && ['fr', 'es'].includes(gs.lang)) ? gs.lang : 'en';
 }
 
 function t(key) {
@@ -1168,6 +1239,7 @@ function renderBag() {
   let html = '';
   const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
   if (gs.lang === 'fr') letters.push('Ç');
+  if (gs.lang === 'es') letters.push('Ñ');
   for (const l of letters) {
     const cnt = gs.bag[l] || 0;
     if (cnt > 0) {
@@ -1368,7 +1440,7 @@ function renderLabels() {
   const bridgeInd = $id('bridgeIndicator');
   if (bridgeInd) {
     bridgeInd.style.display = (gs && gs.bridgeScoring) ? 'block' : 'none';
-    bridgeInd.textContent = getLang() === 'fr' ? '\u{1F309} Scoring Ponts actif' : '\u{1F309} Bridge scoring active';
+    bridgeInd.textContent = getLang() === 'fr' ? '\u{1F309} Scoring Ponts actif' : getLang() === 'es' ? '\u{1F309} Puntuaci\u00F3n Puentes activa' : '\u{1F309} Bridge scoring active';
   }
 }
 
@@ -1389,6 +1461,11 @@ function renderAll() {
   const cedillaKey = document.querySelector('.vkb-cedilla');
   if (cedillaKey) {
     cedillaKey.style.display = (gs && gs.lang === 'fr') ? '' : 'none';
+  }
+  // Show/hide Ñ virtual key based on game language
+  const tildeKey = document.querySelector('.vkb-tilde');
+  if (tildeKey) {
+    tildeKey.style.display = (gs && gs.lang === 'es') ? '' : 'none';
   }
 }
 
@@ -1452,7 +1529,7 @@ function handleKeyInput(key) {
 
   // Letter input
   if (!arrowPos || !inputActive) return;
-  const isLetter = (key.length === 1 && key >= 'A' && key <= 'Z') || key === 'Ç';
+  const isLetter = (key.length === 1 && key >= 'A' && key <= 'Z') || key === 'Ç' || key === 'Ñ';
   if (!isLetter) return;
 
   // Check if it's a valid letter to place
@@ -1523,9 +1600,13 @@ document.addEventListener('keydown', (e) => {
   if (key === 'C' && e.shiftKey && gs.lang === 'fr') {
     key = 'Ç';
   }
+  // Shift+N produces Ñ in Spanish games
+  if (key === 'N' && e.shiftKey && gs.lang === 'es') {
+    key = 'Ñ';
+  }
 
   if (key === 'ESCAPE' || key === 'ENTER' || key === 'BACKSPACE' ||
-      (key.length === 1 && key >= 'A' && key <= 'Z') || key === 'Ç') {
+      (key.length === 1 && key >= 'A' && key <= 'Z') || key === 'Ç' || key === 'Ñ') {
     e.preventDefault();
     handleKeyInput(key);
   }
