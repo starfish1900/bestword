@@ -71,25 +71,61 @@
   .screen { display:none; }
   .screen.active { display:flex; }
 
-  /* ─── Welcome Screen ──────────────────────── */
-  #welcomeScreen {
+  /* ─── Auth Screen ──────────────────────────── */
+  #authScreen {
     flex-direction: column;
     align-items: center;
     justify-content: center;
     min-height: calc(100vh - 60px);
-    gap: 24px;
+    gap: 16px;
     padding: 40px;
   }
-  #welcomeScreen h2 {
+  #authScreen h2 {
     font-family: 'DM Serif Display', serif;
     font-size: 36px;
     color: var(--accent);
   }
-  #welcomeScreen p {
+  #authScreen p {
     color: var(--text2);
     max-width: 400px;
     text-align: center;
     line-height: 1.6;
+  }
+  #loginForm, #signupForm, #verifyMessage {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+  .auth-switch {
+    font-size: 13px;
+    color: var(--text2);
+    margin-top: 4px;
+  }
+  .auth-switch a {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .auth-switch a:hover { text-decoration: underline; }
+  .auth-error {
+    color: var(--red);
+    font-size: 13px;
+    min-height: 20px;
+    text-align: center;
+    max-width: 300px;
+  }
+  .verify-box {
+    background: var(--bg2);
+    border: 1px solid var(--bg3);
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+    max-width: 360px;
+  }
+  .verify-box p {
+    font-size: 14px;
+    margin-bottom: 12px;
   }
   .name-input {
     background: var(--bg3);
@@ -631,9 +667,9 @@
     .logo { font-size: 20px; letter-spacing: 1px; }
     .player-name-display { font-size: 11px; }
 
-    #welcomeScreen { padding: 24px 16px; gap: 16px; }
-    #welcomeScreen h2 { font-size: 28px; }
-    #welcomeScreen p { font-size: 14px; }
+    #authScreen { padding: 24px 16px; gap: 16px; }
+    #authScreen h2 { font-size: 28px; }
+    #authScreen p { font-size: 14px; }
     .name-input { width: 220px; font-size: 14px; padding: 10px 16px; }
 
     #lobbyScreen { padding: 20px 10px; gap: 16px; }
@@ -738,17 +774,51 @@
   <div class="logo">Best<span>Word</span></div>
   <div class="header-info">
     <span class="player-name-display" id="headerName"></span>
+    <button class="btn btn-secondary" id="logoutBtn" style="display:none; padding:6px 14px; font-size:12px;" onclick="logout()">Logout</button>
   </div>
 </header>
 
 <div class="toast" id="toast"></div>
 
-<!-- Welcome -->
-<div class="screen active" id="welcomeScreen">
-  <h2>Welcome</h2>
-  <p>A strategic word game where consonants are precious and vowels flow free. Enter your name to begin.</p>
-  <input type="text" class="name-input" id="nameInput" placeholder="Your name" maxlength="20" autofocus>
-  <button class="btn btn-primary" id="enterBtn">Enter Lobby</button>
+<!-- Auth -->
+<div class="screen active" id="authScreen">
+  <h2>Best<span style="color:var(--text)">Word</span></h2>
+  <p>A strategic word game where consonants are precious and vowels flow free.</p>
+
+  <!-- Login form (shown by default) -->
+  <div id="loginForm">
+    <input type="text" class="name-input" id="loginInput" placeholder="Email or username" maxlength="50" autofocus>
+    <input type="password" class="name-input" id="loginPassword" placeholder="Password" maxlength="50">
+    <button class="btn btn-primary" id="loginBtn" style="width:260px;">Log In</button>
+    <div class="auth-switch">
+      Don't have an account? <a href="#" id="showSignup">Sign up</a>
+    </div>
+  </div>
+
+  <!-- Signup form (hidden by default) -->
+  <div id="signupForm" style="display:none;">
+    <input type="email" class="name-input" id="signupEmail" placeholder="Email" maxlength="50">
+    <input type="text" class="name-input" id="signupUsername" placeholder="Username (3-15, alphanumeric)" maxlength="15">
+    <input type="password" class="name-input" id="signupPassword" placeholder="Password (6+ characters)" maxlength="50">
+    <button class="btn btn-primary" id="signupBtn" style="width:260px;">Sign Up</button>
+    <div class="auth-switch">
+      Already have an account? <a href="#" id="showLogin">Log in</a>
+    </div>
+  </div>
+
+  <!-- Verification message (hidden by default) -->
+  <div id="verifyMessage" style="display:none;">
+    <div class="verify-box">
+      <p>A verification email has been sent to <strong id="verifyEmail"></strong>.</p>
+      <p>Please check your inbox and click the link to verify your account.</p>
+      <button class="btn btn-secondary" id="resendBtn" style="width:260px;">Resend Verification Email</button>
+      <div class="auth-switch">
+        <a href="#" id="backToLogin">Back to Log In</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="auth-error" id="authError"></div>
 </div>
 
 <!-- Lobby -->
@@ -1163,7 +1233,8 @@ function formatError(errObj) {
 
 // ─── State ─────────────────────────────────────────────────────────────────────
 let socket;
-let playerToken = localStorage.getItem('bestword_token');
+let authToken = localStorage.getItem('bestword_jwt'); // JWT token
+let playerToken = localStorage.getItem('bestword_token'); // permanent game token
 let playerName = localStorage.getItem('bestword_name') || '';
 let myRequestActive = false;
 
@@ -1185,10 +1256,9 @@ let clockInterval = null;
 
 // ─── Elements ──────────────────────────────────────────────────────────────────
 const $id = id => document.getElementById(id);
-const welcomeScreen = $id('welcomeScreen');
+const authScreen = $id('authScreen');
 const lobbyScreen = $id('lobbyScreen');
 const gameScreen = $id('gameScreen');
-const nameInput = $id('nameInput');
 const headerName = $id('headerName');
 const lobbyItems = $id('lobbyItems');
 const createRequestBtn = $id('createRequestBtn');
@@ -1205,7 +1275,7 @@ const disconnectBanner = $id('disconnectBanner');
 
 // ─── Screen Management ─────────────────────────────────────────────────────────
 function showScreen(screen) {
-  [welcomeScreen, lobbyScreen, gameScreen].forEach(s => s.classList.remove('active'));
+  [authScreen, lobbyScreen, gameScreen].forEach(s => s.classList.remove('active'));
   screen.classList.add('active');
 }
 
@@ -1795,22 +1865,6 @@ function submitMove() {
 function connectSocket() {
   socket = io();
 
-  socket.on('connect', () => {
-    if (!playerToken) {
-      // Will register after entering name
-      return;
-    }
-    socket.emit('register', { token: playerToken, name: playerName });
-  });
-
-  socket.on('registered', (data) => {
-    playerToken = data.token;
-    playerName = data.name;
-    localStorage.setItem('bestword_token', playerToken);
-    localStorage.setItem('bestword_name', playerName);
-    headerName.textContent = playerName;
-  });
-
   socket.on('lobbyUpdate', (list) => {
     renderLobby(list);
   });
@@ -2006,29 +2060,152 @@ function returnToLobby() {
   createRequestBtn.style.display = '';
   cancelRequestBtn.style.display = 'none';
   myRequestBanner.style.display = 'none';
-  showScreen(lobbyScreen);
+  showScreen(authToken ? lobbyScreen : authScreen);
 }
 
-// ─── Button Handlers ───────────────────────────────────────────────────────────
-$id('enterBtn').addEventListener('click', () => {
-  const name = nameInput.value.trim();
-  if (!name) { showToast('Please enter a name', 'error'); return; }
-  playerName = name;
-  if (!playerToken) {
-    // Generate a permanent token
-    playerToken = crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).substring(2));
+// ─── Auth Handlers ────────────────────────────────────────────────────────────
+const authError = $id('authError');
+const loginForm = $id('loginForm');
+const signupForm = $id('signupForm');
+const verifyMessage = $id('verifyMessage');
+
+function showAuthError(msg) {
+  authError.textContent = msg;
+  setTimeout(() => { authError.textContent = ''; }, 5000);
+}
+
+function showAuthForm(which) {
+  loginForm.style.display = which === 'login' ? '' : 'none';
+  signupForm.style.display = which === 'signup' ? '' : 'none';
+  verifyMessage.style.display = which === 'verify' ? '' : 'none';
+  authError.textContent = '';
+}
+
+$id('showSignup').addEventListener('click', (e) => { e.preventDefault(); showAuthForm('signup'); });
+$id('showLogin').addEventListener('click', (e) => { e.preventDefault(); showAuthForm('login'); });
+$id('backToLogin').addEventListener('click', (e) => { e.preventDefault(); showAuthForm('login'); });
+
+// Login
+$id('loginBtn').addEventListener('click', async () => {
+  const login = $id('loginInput').value.trim();
+  const password = $id('loginPassword').value;
+  if (!login || !password) { showAuthError('Please fill in all fields'); return; }
+
+  try {
+    $id('loginBtn').disabled = true;
+    const res = await fetch('/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ login, password })
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      if (data.needsVerification) {
+        $id('verifyEmail').textContent = data.email;
+        showAuthForm('verify');
+        return;
+      }
+      showAuthError(data.error);
+      return;
+    }
+
+    // Success — store auth and go to lobby
+    authToken = data.token;
+    playerToken = data.player.playerToken;
+    playerName = data.player.username;
+    localStorage.setItem('bestword_jwt', authToken);
+    localStorage.setItem('bestword_token', playerToken);
+    localStorage.setItem('bestword_name', playerName);
+    headerName.textContent = playerName;
+    $id('logoutBtn').style.display = '';
+    socket.emit('register', { token: playerToken, name: playerName });
+    showScreen(lobbyScreen);
+  } catch (err) {
+    showAuthError('Network error. Please try again.');
+  } finally {
+    $id('loginBtn').disabled = false;
   }
-  localStorage.setItem('bestword_name', playerName);
-  localStorage.setItem('bestword_token', playerToken);
-  headerName.textContent = playerName;
-  socket.emit('register', { token: playerToken, name: playerName });
-  showScreen(lobbyScreen);
 });
 
-nameInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') $id('enterBtn').click();
+$id('loginPassword').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') $id('loginBtn').click();
 });
 
+// Signup
+$id('signupBtn').addEventListener('click', async () => {
+  const email = $id('signupEmail').value.trim();
+  const username = $id('signupUsername').value.trim();
+  const password = $id('signupPassword').value;
+
+  if (!email || !username || !password) { showAuthError('Please fill in all fields'); return; }
+  if (username.length < 3 || username.length > 15) { showAuthError('Username must be 3-15 characters'); return; }
+  if (!/^[a-zA-Z0-9]+$/.test(username)) { showAuthError('Username must be alphanumeric'); return; }
+  if (password.length < 6) { showAuthError('Password must be at least 6 characters'); return; }
+
+  try {
+    $id('signupBtn').disabled = true;
+    const res = await fetch('/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, username, password })
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      showAuthError(data.error);
+      return;
+    }
+
+    // Show verification message
+    $id('verifyEmail').textContent = email;
+    showAuthForm('verify');
+    showToast('Account created! Check your email.', 'success');
+  } catch (err) {
+    showAuthError('Network error. Please try again.');
+  } finally {
+    $id('signupBtn').disabled = false;
+  }
+});
+
+$id('signupPassword').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') $id('signupBtn').click();
+});
+
+// Resend verification
+$id('resendBtn').addEventListener('click', async () => {
+  const email = $id('verifyEmail').textContent;
+  if (!email) return;
+
+  try {
+    $id('resendBtn').disabled = true;
+    await fetch('/auth/resend-verification', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    showToast('Verification email sent!', 'success');
+  } catch (err) {
+    showToast('Failed to resend. Try again.', 'error');
+  } finally {
+    setTimeout(() => { $id('resendBtn').disabled = false; }, 10000); // rate limit
+  }
+});
+
+// Logout
+function logout() {
+  authToken = null;
+  playerToken = null;
+  playerName = '';
+  localStorage.removeItem('bestword_jwt');
+  localStorage.removeItem('bestword_token');
+  localStorage.removeItem('bestword_name');
+  headerName.textContent = '';
+  $id('logoutBtn').style.display = 'none';
+  showScreen(authScreen);
+}
+
+// ─── Game Button Handlers ─────────────────────────────────────────────────────
 createRequestBtn.addEventListener('click', () => {
   const minutes = parseInt($id('tcSelect').value) || 15;
   const lang = $id('langSelect').value || 'en';
@@ -2058,14 +2235,53 @@ passBtn.addEventListener('click', () => {
 });
 clearBtn.addEventListener('click', () => { clearTypedTiles(); });
 
-// ─── Init ──────────────────────────────────────────────────────────────────────
+// ─── Auto-login & Init ───────────────────────────────────────────────────────
+async function tryAutoLogin() {
+  if (!authToken) return false;
+
+  try {
+    const res = await fetch('/auth/me', {
+      headers: { 'Authorization': 'Bearer ' + authToken }
+    });
+    if (!res.ok) {
+      // Token invalid or expired
+      localStorage.removeItem('bestword_jwt');
+      authToken = null;
+      return false;
+    }
+    const data = await res.json();
+    playerToken = data.playerToken;
+    playerName = data.username;
+    localStorage.setItem('bestword_token', playerToken);
+    localStorage.setItem('bestword_name', playerName);
+    headerName.textContent = playerName;
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
 buildBoard();
 connectSocket();
 
-// If returning player with name set
-if (playerName) {
-  nameInput.value = playerName;
-}
+// Try auto-login after socket connects
+socket.on('connect', async () => {
+  if (authToken && playerToken) {
+    const valid = await tryAutoLogin();
+    if (valid) {
+      $id('logoutBtn').style.display = '';
+      socket.emit('register', { token: playerToken, name: playerName });
+      // Only switch to lobby if we're on the auth screen (not in a game)
+      if (authScreen.classList.contains('active')) {
+        showScreen(lobbyScreen);
+      }
+    }
+  }
+  // If already in lobby/game and socket reconnects, re-register
+  if (!authScreen.classList.contains('active') && playerToken) {
+    socket.emit('register', { token: playerToken, name: playerName });
+  }
+});
 </script>
 </body>
 </html>

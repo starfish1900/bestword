@@ -4,14 +4,30 @@ const { Server } = require('socket.io');
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
 const path = require('path');
+const mongoose = require('mongoose');
 const { DAWG } = require('./dawg');
 const game = require('./game');
+const { router: authRouter } = require('./auth');
+const { verifyMailConfig } = require('./email');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { pingInterval: 10000, pingTimeout: 20000 });
 
+// ─── Middleware ─────────────────────────────────────────────────────────────────
+app.use(express.json());
+app.use('/auth', authRouter);
 app.use(express.static(path.join(__dirname, 'public')));
+
+// ─── MongoDB Connection ────────────────────────────────────────────────────────
+const MONGODB_URI = process.env.MONGODB_URI;
+if (MONGODB_URI) {
+  mongoose.connect(MONGODB_URI)
+    .then(() => console.log('Connected to MongoDB Atlas'))
+    .catch(err => console.error('MongoDB connection error:', err.message));
+} else {
+  console.warn('MONGODB_URI not set — running without database (auth disabled)');
+}
 
 // ─── Load Dictionaries & Build DAWGs ────────────────────────────────────────
 const dawgs = {};
@@ -471,6 +487,7 @@ setInterval(() => {
 
 // ─── Start ─────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   console.log(`BestWord server running on port ${PORT}`);
+  await verifyMailConfig();
 });
