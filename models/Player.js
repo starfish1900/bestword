@@ -79,10 +79,7 @@ playerSchema.methods.comparePassword = async function(candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
 };
 
-// Indexes
-playerSchema.index({ email: 1 });
-playerSchema.index({ username: 1 });
-playerSchema.index({ playerToken: 1 });
+// Indexes (only for fields not already indexed via unique:true)
 playerSchema.index({ verificationToken: 1 });
 
 const Player = mongoose.model('Player', playerSchema);
