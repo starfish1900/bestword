@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const Player = require('./models/Player');
+const WordHistory = require('./models/WordHistory');
 const { sendVerificationEmail } = require('./email');
 
 const router = express.Router();
@@ -267,6 +268,45 @@ router.get('/me', authenticateToken, async (req, res) => {
       draws: player.draws
     });
   } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ─── GET /auth/word-history — get player's ChosenWord word history ────────────
+router.get('/word-history', authenticateToken, async (req, res) => {
+  try {
+    const player = await Player.findById(req.player.id);
+    if (!player) return res.status(404).json({ error: 'Player not found' });
+
+    const lang = ['en', 'fr', 'es'].includes(req.query.lang) ? req.query.lang : 'en';
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 50));
+    const search = req.query.search ? req.query.search.toUpperCase().trim() : null;
+
+    const filter = { playerId: player._id, lang };
+    if (search) {
+      filter.word = { $regex: search };
+    }
+
+    const total = await WordHistory.countDocuments(filter);
+    const words = await WordHistory.find(filter)
+      .sort({ playedAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .select('word playedAt -_id');
+
+    res.json({
+      lang,
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      words: words.map(w => ({ word: w.word, playedAt: w.playedAt })),
+      chosenWordGamesPlayed: player.chosenWordGamesPlayed[lang] || 0,
+      gamesUntilClear: 365 - ((player.chosenWordGamesPlayed[lang] || 0) % 365)
+    });
+  } catch (err) {
+    console.error('Word history error:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });

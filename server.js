@@ -9,6 +9,9 @@ const { DAWG } = require('./dawg');
 const game = require('./game');
 const { router: authRouter } = require('./auth');
 const { verifyMailConfig } = require('./email');
+const Player = require('./models/Player');
+const WordHistory = require('./models/WordHistory');
+const GameRecord = require('./models/GameRecord');
 
 const app = express();
 const server = http.createServer(app);
@@ -79,7 +82,7 @@ function emitToPlayer(playerToken, event, data) {
 function broadcastLobby() {
   const list = [];
   for (const [reqId, req] of lobby) {
-    list.push({ requestId: reqId, playerName: req.playerName, createdAt: req.createdAt, timeControl: req.timeControl, lang: req.lang, bridgeScoring: req.bridgeScoring });
+    list.push({ requestId: reqId, playerName: req.playerName, createdAt: req.createdAt, timeControl: req.timeControl, lang: req.lang, bridgeScoring: req.bridgeScoring, variant: req.variant });
   }
   io.emit('lobbyUpdate', list);
 }
@@ -106,6 +109,132 @@ function cleanupGame(gameId) {
   games.delete(gameId);
 }
 
+// ─── Save game record to MongoDB ─────────────────────────────────────────────
+async function saveGameRecord(g, gameResult) {
+  if (!MONGODB_URI) return;
+  try {
+    // Look up player ObjectIds
+    const playerDocs = {};
+    for (const token of g.playerOrder) {
+      const doc = await Player.findOne({ playerToken: token });
+      if (doc) playerDocs[token] = doc;
+    }
+
+    // Build replay-compatible move list
+    let moveNumber = 0;
+    const moves = g.moveHistory.map(m => {
+      moveNumber++;
+      const playerIdx = g.playerOrder.indexOf(m.player);
+      const entry = {
+        moveNumber,
+        playerIndex: playerIdx,
+        action: m.action,
+        timestamp: new Date()
+      };
+      if (m.action === 'DRAW') {
+        entry.drawn = m.drawn || [];
+      } else if (m.action === 'CHOOSE') {
+        entry.chosen = m.chosen || [];
+      } else if (m.action === 'PLACE') {
+        entry.startRow = m.startRow;
+        entry.startCol = m.startCol;
+        entry.direction = m.direction;
+        entry.word = m.word;
+        entry.newTiles = m.newTiles;
+        entry.secondaryWords = m.secondaryWords;
+        entry.score = m.score;
+      }
+      // Add time remaining for the player who acted
+      const p = g.players[m.player];
+      if (p) entry.timeRemainingAfter = p.timeRemaining;
+      return entry;
+    });
+
+    // Determine winner ObjectId
+    let winnerDoc = null;
+    let winnerIndex = null;
+    if (gameResult.winner) {
+      winnerDoc = playerDocs[gameResult.winner];
+      winnerIndex = g.playerOrder.indexOf(gameResult.winner);
+    }
+
+    const record = new GameRecord({
+      players: g.playerOrder.map((token, idx) => ({
+        playerId: playerDocs[token] ? playerDocs[token]._id : null,
+        username: g.players[token].name,
+        playerToken: token,
+        finalScore: g.players[token].score
+      })),
+      variant: g.variant || 'bestword',
+      lang: g.lang,
+      timeControl: g.timeControl,
+      bridgeScoring: g.bridgeScoring,
+      result: {
+        winner: winnerDoc ? winnerDoc._id : null,
+        winnerIndex,
+        reason: gameResult.reason
+      },
+      initWords: g.initResult,
+      moves,
+      startedAt: new Date(g.createdAt),
+      endedAt: new Date()
+    });
+
+    const savedRecord = await record.save();
+
+    // Update player stats
+    for (const token of g.playerOrder) {
+      const doc = playerDocs[token];
+      if (!doc) continue;
+      doc.gamesPlayed++;
+      if (gameResult.reason === 'draw') {
+        doc.draws++;
+      } else if (gameResult.winner === token) {
+        doc.wins++;
+      } else {
+        doc.losses++;
+      }
+      // ChosenWord game counter
+      if (g.variant === 'chosenword') {
+        const langKey = g.lang;
+        doc.chosenWordGamesPlayed[langKey] = (doc.chosenWordGamesPlayed[langKey] || 0) + 1;
+        // 365-game cycle clear
+        if (doc.chosenWordGamesPlayed[langKey] % 365 === 0) {
+          await WordHistory.deleteMany({ playerId: doc._id, lang: langKey });
+          console.log(`Cleared word history for ${doc.username} (${langKey}) at game ${doc.chosenWordGamesPlayed[langKey]}`);
+        }
+      }
+      await doc.save();
+    }
+
+    // ChosenWord: save principal words to each player's word history
+    if (g.variant === 'chosenword') {
+      const wordEntries = [];
+      for (const m of g.moveHistory) {
+        if (m.action === 'PLACE' && m.word) {
+          const doc = playerDocs[m.player];
+          if (doc) {
+            wordEntries.push({
+              playerId: doc._id,
+              lang: g.lang,
+              word: m.word,
+              gameId: savedRecord._id,
+              playedAt: new Date()
+            });
+          }
+        }
+      }
+      if (wordEntries.length > 0) {
+        await WordHistory.insertMany(wordEntries);
+      }
+    }
+
+    console.log(`Game record saved: ${savedRecord._id} (${g.variant}, ${g.lang})`);
+  } catch (err) {
+    console.error('Error saving game record:', err.message);
+  }
+}
+
 function finishGameByDisconnect(gameId, disconnectedToken) {
   const g = games.get(gameId);
   if (!g || g.phase === 'finished') return;
@@ -126,6 +255,8 @@ function finishGameByDisconnect(gameId, disconnectedToken) {
   }
 
   // Cleanup after a short delay
+  const disconnectResult = { winner: opponent, loser: disconnectedToken, reason: 'disconnect' };
+  saveGameRecord(g, disconnectResult).catch(err => console.error('Failed to save game record:', err.message));
   setTimeout(() => cleanupGame(gameId), 5000);
 }
 
@@ -148,6 +279,8 @@ function finishGameByTimeout(gameId, timedOutToken) {
     emitToPlayer(token, 'gameOver', state);
   }
 
+  const timeoutResult = { winner: opponent, loser: timedOutToken, reason: 'timeout' };
+  saveGameRecord(g, timeoutResult).catch(err => console.error('Failed to save game record:', err.message));
   setTimeout(() => cleanupGame(gameId), 5000);
 }
 
@@ -228,6 +361,9 @@ io.on('connection', (socket) => {
     // Parse bridge scoring
     const bridgeScoring = !!(data && data.bridgeScoring);
 
+    // Parse variant
+    const variant = (data && data.variant === 'chosenword') ? 'chosenword' : 'bestword';
+
     const requestId = uuidv4();
     lobby.set(requestId, {
       playerToken,
@@ -236,7 +372,8 @@ io.on('connection', (socket) => {
       createdAt: Date.now(),
       timeControl,
       lang,
-      bridgeScoring
+      bridgeScoring,
+      variant
     });
     broadcastLobby();
   });
@@ -278,7 +415,7 @@ io.on('connection', (socket) => {
     // Create game
     const gameId = uuidv4();
     try {
-      const g = game.createGame(gameId, req.playerToken, req.playerName, getDawg(req.lang), req.timeControl, req.lang, req.bridgeScoring);
+      const g = game.createGame(gameId, req.playerToken, req.playerName, getDawg(req.lang), req.timeControl, req.lang, req.bridgeScoring, req.variant);
       game.addPlayer(g, playerToken, playerNames.get(playerToken) || 'Anonymous');
       games.set(gameId, g);
       playerGames.set(req.playerToken, gameId);
@@ -290,7 +427,8 @@ io.on('connection', (socket) => {
         playerIndex: 0,
         timeControl: req.timeControl,
         lang: req.lang,
-        bridgeScoring: req.bridgeScoring
+        bridgeScoring: req.bridgeScoring,
+        variant: req.variant
       });
       socket.emit('gameStarted', {
         gameId,
@@ -298,7 +436,8 @@ io.on('connection', (socket) => {
         playerIndex: 1,
         timeControl: req.timeControl,
         lang: req.lang,
-        bridgeScoring: req.bridgeScoring
+        bridgeScoring: req.bridgeScoring,
+        variant: req.variant
       });
 
       sendGameState(g);
@@ -336,6 +475,8 @@ io.on('connection', (socket) => {
         };
         emitToPlayer(token, 'gameOver', state);
       }
+      // Save game record and word history asynchronously
+      saveGameRecord(g, gameResult).catch(err => console.error('Failed to save game record:', err.message));
       setTimeout(() => cleanupGame(gameId), 5000);
       return true;
     }
@@ -348,11 +489,34 @@ io.on('connection', (socket) => {
     if (!gameId) return;
     const g = games.get(gameId);
     if (!g || g.phase === 'finished') return;
+    if (g.variant === 'chosenword') {
+      socket.emit('actionError', { code: 'USE_CHOOSE_CONSONANTS' });
+      return;
+    }
 
     const result = game.performDraw(g, playerToken);
     if (handleActionResult(result, gameId, g)) return;
 
     socket.emit('drawResult', { drawn: result.drawn, rackCount: result.rackCount });
+    sendGameState(g);
+  });
+
+  socket.on('chooseConsonants', (data) => {
+    if (!playerToken) return;
+    const gameId = playerGames.get(playerToken);
+    if (!gameId) return;
+    const g = games.get(gameId);
+    if (!g || g.phase === 'finished') return;
+    if (g.variant !== 'chosenword') {
+      socket.emit('actionError', { code: 'NOT_CHOSENWORD' });
+      return;
+    }
+
+    const letters = (data && data.letters) ? data.letters.map(l => l.toUpperCase()) : [];
+    const result = game.performChooseConsonants(g, playerToken, letters);
+    if (handleActionResult(result, gameId, g)) return;
+
+    socket.emit('chooseResult', { chosen: result.chosen, rackCount: result.rackCount });
     sendGameState(g);
   });
 
@@ -380,7 +544,7 @@ io.on('connection', (socket) => {
     sendGameState(g);
   });
 
-  socket.on('placeWord', (data) => {
+  socket.on('placeWord', async (data) => {
     if (!playerToken) return;
     const gameId = playerGames.get(playerToken);
     if (!gameId) return;
@@ -388,6 +552,27 @@ io.on('connection', (socket) => {
     if (!g || g.phase === 'finished') return;
 
     const { startRow, startCol, direction, word } = data;
+
+    // ChosenWord: check word history before validating move
+    if (g.variant === 'chosenword' && MONGODB_URI) {
+      try {
+        const player = await Player.findOne({ playerToken });
+        if (player) {
+          const blocked = await WordHistory.findOne({
+            playerId: player._id,
+            lang: g.lang,
+            word: word.toUpperCase()
+          });
+          if (blocked) {
+            socket.emit('actionError', { code: 'WORD_IN_HISTORY', word: word.toUpperCase() });
+            return;
+          }
+        }
+      } catch (err) {
+        console.error('Word history check error:', err.message);
+      }
+    }
+
     const result = game.performPlaceWord(g, playerToken, startRow, startCol, direction, word, getDawg(g.lang));
     if (handleActionResult(result, gameId, g)) return;
 

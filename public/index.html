@@ -464,6 +464,67 @@
     color: var(--text2);
     line-height: 1.6;
   }
+
+  /* Consonant picker (ChosenWord) */
+  .picker-label {
+    font-size: 13px;
+    color: var(--text2);
+    margin-bottom: 8px;
+  }
+  .picker-tiles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+  .picker-tile {
+    width: 34px;
+    height: 34px;
+    background: var(--bg3);
+    border: 2px solid var(--tile-border);
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--consonant);
+    cursor: pointer;
+    position: relative;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .picker-tile:hover { border-color: var(--accent); }
+  .picker-tile.selected {
+    border-color: var(--green);
+    background: rgba(76, 175, 125, 0.15);
+  }
+  .picker-tile .ptile-count {
+    position: absolute;
+    bottom: 1px;
+    right: 2px;
+    font-size: 8px;
+    color: var(--text2);
+  }
+  .picker-selected {
+    font-size: 12px;
+    color: var(--text2);
+    margin-bottom: 8px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .picker-selected span { color: var(--green); font-weight: 600; }
+
+  /* Variant indicator */
+  .variant-indicator {
+    display: none;
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 12px;
+    color: var(--accent);
+    text-align: center;
+    background: rgba(232, 169, 70, 0.08);
+  }
   .bag-letter {
     display: inline-block;
     min-width: 32px;
@@ -843,6 +904,11 @@
       <option value="no" selected>No</option>
       <option value="yes">Yes</option>
     </select>
+    <span class="tc-label">Variant:</span>
+    <select class="tc-select" id="variantSelect">
+      <option value="bestword" selected>BestWord</option>
+      <option value="chosenword">ChosenWord</option>
+    </select>
     <button class="btn btn-primary" id="createRequestBtn">Create Game</button>
     <button class="btn btn-danger" id="cancelRequestBtn" style="display:none;">Cancel</button>
   </div>
@@ -943,9 +1009,16 @@
       &#x1F309; Bridge scoring active
     </div>
 
+    <div class="variant-indicator" id="variantIndicator"></div>
+
     <div class="panel">
       <div class="panel-title" id="panelStatus">Status</div>
       <div class="status-text" id="statusText">Waiting...</div>
+    </div>
+
+    <div class="panel" id="oppRackPanel" style="display:none;">
+      <div class="panel-title" id="panelOppRack">Opponent's Rack</div>
+      <div class="rack-tiles" id="oppRackTiles"></div>
     </div>
 
     <div class="panel">
@@ -957,6 +1030,15 @@
       <div class="panel-title" id="panelActions">Actions</div>
       <div class="actions" id="actionsPanel">
         <button class="btn btn-primary" id="drawBtn" disabled>Draw Consonants</button>
+        <!-- Consonant picker for ChosenWord -->
+        <div id="consonantPicker" style="display:none;">
+          <div class="picker-label" id="pickerLabel">Choose <span id="pickerCount">2</span> consonant(s):</div>
+          <div class="picker-tiles" id="pickerTiles"></div>
+          <div class="picker-selected">
+            Selected: <span id="pickerSelected">-</span>
+          </div>
+          <button class="btn btn-primary" id="confirmPickBtn" disabled>Confirm Choice</button>
+        </div>
         <button class="btn btn-success" id="submitBtn" disabled>Submit Word (Enter)</button>
         <button class="btn btn-secondary" id="noWordsBtn" disabled>No Words</button>
         <button class="btn btn-danger" id="passBtn" disabled>Pass (Forfeit)</button>
@@ -1031,7 +1113,10 @@ const I18N = {
     click_square: 'Click a square to place a word, or choose an action.',
     // Toasts
     drew: letters => `Drew: ${letters}`,
+    chose: letters => `Chose: ${letters}`,
     rack_full_skip: 'Rack full \u2014 draw skipped',
+    choose_consonants: 'Choose consonants',
+    picker_no_more: 'No more of this letter available',
     opp_played: (w, s) => `Opponent played ${w} for +${s}`,
     you_played: (w, s) => `You played ${w} for +${s}!`,
     not_on_rack: l => `${l} is not available on your rack`,
@@ -1074,7 +1159,13 @@ const I18N = {
       NOT_ACTION_PHASE: 'Not in action phase',
       NO_WORDS_AFTER_PASS: 'Cannot declare NO WORDS after opponent has passed',
       NO_WORDS_NO_DRAW: 'Cannot declare NO WORDS \u2014 no consonants drawn',
-      TIMEOUT: 'Time expired'
+      TIMEOUT: 'Time expired',
+      WORD_IN_HISTORY: e => `"${e.word}" is in your word history \u2014 cannot replay`,
+      WRONG_CONSONANT_COUNT: e => `Must choose exactly ${e.expected} consonant(s)`,
+      NOT_A_CONSONANT: e => `${e.letter} is not a consonant`,
+      CONSONANT_NOT_IN_BAG: e => `${e.letter} is not available in the bag`,
+      NOT_CHOSENWORD: 'Not a ChosenWord game',
+      USE_CHOOSE_CONSONANTS: 'Use the consonant picker to choose'
     }
   },
   fr: {
@@ -1097,7 +1188,10 @@ const I18N = {
     click_square: 'Cliquez sur une case pour placer un mot, ou choisissez une action.',
     // Toasts
     drew: letters => `Pioch\u00E9 : ${letters}`,
+    chose: letters => `Choisi : ${letters}`,
     rack_full_skip: 'Chevalet plein \u2014 pioche ignor\u00E9e',
+    choose_consonants: 'Choisir des consonnes',
+    picker_no_more: 'Plus de cette lettre disponible',
     opp_played: (w, s) => `Adversaire a jou\u00E9 ${w} pour +${s}`,
     you_played: (w, s) => `Vous avez jou\u00E9 ${w} pour +${s}\u00A0!`,
     not_on_rack: l => `${l} n'est pas sur votre chevalet`,
@@ -1140,7 +1234,13 @@ const I18N = {
       NOT_ACTION_PHASE: "Pas en phase d'action",
       NO_WORDS_AFTER_PASS: "Impossible de d\u00E9clarer PAS DE MOT apr\u00E8s que l'adversaire a pass\u00E9",
       NO_WORDS_NO_DRAW: 'Impossible de d\u00E9clarer PAS DE MOT \u2014 aucune consonne pioch\u00E9e',
-      TIMEOUT: 'Temps \u00E9coul\u00E9'
+      TIMEOUT: 'Temps \u00E9coul\u00E9',
+      WORD_IN_HISTORY: e => `"${e.word}" est dans votre historique \u2014 impossible de rejouer`,
+      WRONG_CONSONANT_COUNT: e => `Vous devez choisir exactement ${e.expected} consonne(s)`,
+      NOT_A_CONSONANT: e => `${e.letter} n'est pas une consonne`,
+      CONSONANT_NOT_IN_BAG: e => `${e.letter} n'est pas disponible dans le sac`,
+      NOT_CHOSENWORD: 'Pas une partie ChosenWord',
+      USE_CHOOSE_CONSONANTS: 'Utilisez le s\u00E9lecteur de consonnes'
     }
   },
   es: {
@@ -1163,7 +1263,10 @@ const I18N = {
     click_square: 'Haz clic en una casilla para colocar una palabra, o elige una acci\u00F3n.',
     // Toasts
     drew: letters => `Sacaste: ${letters}`,
+    chose: letters => `Elegiste: ${letters}`,
     rack_full_skip: 'Atril lleno \u2014 se omiti\u00F3 la pioche',
+    choose_consonants: 'Elegir consonantes',
+    picker_no_more: 'No hay m\u00E1s de esta letra disponible',
     opp_played: (w, s) => `El oponente jug\u00F3 ${w} por +${s}`,
     you_played: (w, s) => `Jugaste ${w} por +${s}\u00A0!`,
     not_on_rack: l => `${l} no est\u00E1 en tu atril`,
@@ -1206,7 +1309,13 @@ const I18N = {
       NOT_ACTION_PHASE: 'No es fase de acci\u00F3n',
       NO_WORDS_AFTER_PASS: 'No puedes declarar SIN PALABRA despu\u00E9s de que el oponente pas\u00F3',
       NO_WORDS_NO_DRAW: 'No puedes declarar SIN PALABRA \u2014 no se sacaron consonantes',
-      TIMEOUT: 'Tiempo agotado'
+      TIMEOUT: 'Tiempo agotado',
+      WORD_IN_HISTORY: e => `"${e.word}" est\u00E1 en tu historial \u2014 no se puede repetir`,
+      WRONG_CONSONANT_COUNT: e => `Debes elegir exactamente ${e.expected} consonante(s)`,
+      NOT_A_CONSONANT: e => `${e.letter} no es una consonante`,
+      CONSONANT_NOT_IN_BAG: e => `${e.letter} no est\u00E1 disponible en la bolsa`,
+      NOT_CHOSENWORD: 'No es una partida ChosenWord',
+      USE_CHOOSE_CONSONANTS: 'Usa el selector de consonantes'
     }
   }
 };
@@ -1488,7 +1597,7 @@ function renderStatus() {
   } else if (!gs.isMyTurn) {
     el.textContent = t('opp_turn');
   } else if (gs.phase === 'draw' && !gs.drawDone) {
-    el.textContent = t('click_draw');
+    el.textContent = (gs.variant === 'chosenword') ? t('choose_consonants') : t('click_draw');
     el.classList.add('highlight');
   } else if (gs.phase === 'action') {
     if (gs.opponentPassed) {
@@ -1509,12 +1618,129 @@ function renderActions() {
   if (!gs) return;
   const isMyTurn = gs.isMyTurn;
   const phase = gs.phase;
+  const isChosenWord = gs.variant === 'chosenword';
 
-  drawBtn.disabled = !(isMyTurn && phase === 'draw' && !gs.drawDone);
+  // BestWord: show draw button, hide picker
+  // ChosenWord: hide draw button, show picker
+  const picker = $id('consonantPicker');
+  if (isChosenWord) {
+    drawBtn.style.display = 'none';
+    picker.style.display = (isMyTurn && phase === 'draw' && !gs.drawDone) ? '' : 'none';
+    if (isMyTurn && phase === 'draw' && !gs.drawDone) {
+      renderConsonantPicker();
+    }
+  } else {
+    drawBtn.style.display = '';
+    picker.style.display = 'none';
+    drawBtn.disabled = !(isMyTurn && phase === 'draw' && !gs.drawDone);
+  }
+
   submitBtn.disabled = !(isMyTurn && phase === 'action' && typedTiles.length > 0);
   noWordsBtn.disabled = !(isMyTurn && phase === 'action' && !gs.opponentPassed && gs.drewCount > 0);
   passBtn.disabled = !(isMyTurn && phase === 'action');
   clearBtn.disabled = typedTiles.length === 0;
+}
+
+// ─── Consonant Picker (ChosenWord) ────────────────────────────────────────────
+let pickedConsonants = [];
+
+function renderConsonantPicker() {
+  if (!gs || !gs.consonantsAvailable) return;
+
+  const rackCount = gs.myRack.length;
+  let toChoose = rackCount >= 10 ? 0 : rackCount === 9 ? 1 : 2;
+  // Cap by available consonants
+  const totalAvail = Object.values(gs.consonantsAvailable).reduce((a, b) => a + b, 0);
+  toChoose = Math.min(toChoose, totalAvail);
+
+  $id('pickerCount').textContent = toChoose;
+  const tilesEl = $id('pickerTiles');
+  tilesEl.innerHTML = '';
+
+  if (toChoose === 0) {
+    tilesEl.innerHTML = '<span style="color:var(--text2);font-size:12px;">Rack full — no choice needed</span>';
+    $id('confirmPickBtn').disabled = false;
+    pickedConsonants = [];
+    return;
+  }
+
+  // Sort consonants alphabetically, add Ç/Ñ at end
+  const letters = Object.keys(gs.consonantsAvailable).sort((a, b) => {
+    const aSpecial = a > 'Z', bSpecial = b > 'Z';
+    if (aSpecial !== bSpecial) return aSpecial ? 1 : -1;
+    return a.localeCompare(b);
+  });
+
+  for (const letter of letters) {
+    const count = gs.consonantsAvailable[letter];
+    const tile = document.createElement('div');
+    tile.className = 'picker-tile';
+    if (pickedConsonants.filter(c => c === letter).length > 0) {
+      // Check if this tile should be selected
+      // We mark as selected based on how many times picked
+    }
+    tile.innerHTML = `${letter}<span class="ptile-count">${count}</span>`;
+    tile.addEventListener('click', () => {
+      togglePickConsonant(letter, count, toChoose);
+    });
+    tilesEl.appendChild(tile);
+  }
+  updatePickerDisplay(toChoose);
+}
+
+function togglePickConsonant(letter, availCount, toChoose) {
+  const idx = pickedConsonants.indexOf(letter);
+  if (idx >= 0) {
+    // Deselect
+    pickedConsonants.splice(idx, 1);
+  } else {
+    // Check if already picked max of this letter
+    const pickedOfThis = pickedConsonants.filter(c => c === letter).length;
+    if (pickedOfThis >= availCount) {
+      showToast(t('picker_no_more') || 'No more of this letter available', 'error');
+      return;
+    }
+    if (pickedConsonants.length >= toChoose) {
+      // Replace last pick
+      pickedConsonants.pop();
+    }
+    pickedConsonants.push(letter);
+  }
+  updatePickerDisplay(toChoose);
+}
+
+function updatePickerDisplay(toChoose) {
+  const selectedEl = $id('pickerSelected');
+  selectedEl.textContent = pickedConsonants.length > 0 ? pickedConsonants.join(', ') : '-';
+  $id('confirmPickBtn').disabled = (pickedConsonants.length !== toChoose);
+
+  // Update tile highlights
+  const tiles = $id('pickerTiles').querySelectorAll('.picker-tile');
+  const pickCounts = {};
+  for (const c of pickedConsonants) pickCounts[c] = (pickCounts[c] || 0) + 1;
+  tiles.forEach(tile => {
+    const letter = tile.textContent.replace(/\d+$/, ''); // extract letter
+    tile.classList.toggle('selected', (pickCounts[letter] || 0) > 0);
+  });
+}
+
+// ─── Render Opponent Rack (ChosenWord) ─────────────────────────────────────────
+function renderOpponentRack() {
+  const panel = $id('oppRackPanel');
+  if (!gs || gs.variant !== 'chosenword' || !gs.opponentRack) {
+    panel.style.display = 'none';
+    return;
+  }
+  panel.style.display = '';
+  const el = $id('oppRackTiles');
+  el.innerHTML = '';
+  const lv = gs.letterValues || {};
+  for (const letter of gs.opponentRack) {
+    const tile = document.createElement('div');
+    tile.className = 'rack-tile';
+    tile.innerHTML = `<span class="consonant-letter">${letter}</span><span class="rv">${lv[letter] || '?'}</span>`;
+    el.appendChild(tile);
+  }
 }
 
 // ─── Clock ────────────────────────────────────────────────────────────────────
@@ -1621,6 +1847,24 @@ function renderLabels() {
     bridgeInd.style.display = (gs && gs.bridgeScoring) ? 'block' : 'none';
     bridgeInd.textContent = getLang() === 'fr' ? '\u{1F309} Scoring Ponts actif' : getLang() === 'es' ? '\u{1F309} Puntuaci\u00F3n Puentes activa' : '\u{1F309} Bridge scoring active';
   }
+
+  // Variant indicator
+  const varInd = $id('variantIndicator');
+  if (varInd) {
+    if (gs && gs.variant === 'chosenword') {
+      varInd.style.display = 'block';
+      const labels = { en: 'ChosenWord — Perfect Information', fr: 'ChosenWord — Information parfaite', es: 'ChosenWord — Informaci\u00F3n perfecta' };
+      varInd.textContent = labels[getLang()] || labels.en;
+    } else {
+      varInd.style.display = 'none';
+    }
+  }
+
+  // Opponent rack label
+  if (gs && gs.variant === 'chosenword') {
+    const oppRackLabel = { en: "Opponent's Rack", fr: "Atril de l'adversaire", es: 'Atril del oponente' };
+    $id('panelOppRack').textContent = oppRackLabel[getLang()] || oppRackLabel.en;
+  }
 }
 
 // ─── Full Render ───────────────────────────────────────────────────────────────
@@ -1629,6 +1873,7 @@ function renderAll() {
   renderLabels();
   renderBoard();
   renderRack();
+  renderOpponentRack();
   renderBag();
   renderHistory();
   renderScores();
@@ -1910,6 +2155,15 @@ function connectSocket() {
     }
   });
 
+  socket.on('chooseResult', (data) => {
+    pickedConsonants = [];
+    if (data.chosen.length > 0) {
+      showToast(t('chose')(data.chosen.join(', ')), 'success');
+    } else {
+      showToast(t('rack_full_skip'), '');
+    }
+  });
+
   socket.on('wordPlaced', (data) => {
     if (data.playedBy === 'opponent') {
       showToast(t('opp_played')(data.principalWord, data.score), '');
@@ -1993,6 +2247,16 @@ function renderLobby(list) {
       bridgeTag.style.background = 'rgba(76, 175, 125, 0.12)';
       bridgeTag.textContent = '\u{1F309}';
       item.appendChild(bridgeTag);
+    }
+
+    // Variant tag
+    if (req.variant === 'chosenword') {
+      const varTag = document.createElement('span');
+      varTag.className = 'lobby-item-tc';
+      varTag.style.color = 'var(--accent)';
+      varTag.style.background = 'rgba(232, 169, 70, 0.12)';
+      varTag.textContent = 'CW';
+      item.appendChild(varTag);
     }
 
     // Only show Join button if it's not our own request
@@ -2210,7 +2474,8 @@ createRequestBtn.addEventListener('click', () => {
   const minutes = parseInt($id('tcSelect').value) || 15;
   const lang = $id('langSelect').value || 'en';
   const bridgeScoring = $id('bridgeSelect').value === 'yes';
-  socket.emit('createRequest', { minutes, lang, bridgeScoring });
+  const variant = $id('variantSelect').value || 'bestword';
+  socket.emit('createRequest', { minutes, lang, bridgeScoring, variant });
   myRequestActive = true;
   createRequestBtn.style.display = 'none';
   cancelRequestBtn.style.display = '';
@@ -2226,6 +2491,11 @@ cancelRequestBtn.addEventListener('click', () => {
 });
 
 drawBtn.addEventListener('click', () => { socket.emit('draw'); });
+$id('confirmPickBtn').addEventListener('click', () => {
+  if (pickedConsonants.length > 0 || (gs && gs.myRack.length >= 10)) {
+    socket.emit('chooseConsonants', { letters: pickedConsonants });
+  }
+});
 submitBtn.addEventListener('click', () => { submitMove(); });
 noWordsBtn.addEventListener('click', () => {
   if (confirm(t('confirm_no_words'))) socket.emit('noWords');
