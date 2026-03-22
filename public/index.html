@@ -617,6 +617,45 @@
     padding: 6px 14px;
     font-size: 12px;
   }
+
+  /* Moves modal (reuses wh styles) */
+  .mv-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--bg3);
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .mv-row:hover { background: var(--bg3); border-radius: 4px; }
+  .mv-word {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--text);
+    font-weight: 600;
+  }
+  .mv-details {
+    font-size: 11px;
+    color: var(--text2);
+  }
+  .mv-score {
+    font-family: 'DM Serif Display', serif;
+    font-size: 16px;
+    color: var(--accent);
+    min-width: 50px;
+    text-align: right;
+  }
+  .mv-info {
+    flex: 1;
+    margin-right: 8px;
+  }
+  .mv-stats {
+    padding: 0 20px 8px;
+    font-size: 12px;
+    color: var(--text2);
+    font-family: 'IBM Plex Mono', monospace;
+  }
   .bag-letter {
     display: inline-block;
     min-width: 32px;
@@ -1036,6 +1075,18 @@
   </div>
 </div>
 
+<!-- Moves Modal (Ctrl+G) -->
+<div class="wh-overlay" id="mvOverlay" style="display:none;">
+  <div class="wh-modal">
+    <div class="wh-header">
+      <h3>Best Moves</h3>
+      <button class="wh-close" id="mvClose">&times;</button>
+    </div>
+    <div class="mv-stats" id="mvStats"></div>
+    <div class="wh-list" id="mvList" style="max-height:55vh;"></div>
+  </div>
+</div>
+
 <!-- Game -->
 <div class="screen" id="gameScreen">
   <div class="board-container">
@@ -1280,7 +1331,8 @@ const I18N = {
       NOT_A_CONSONANT: e => `${e.letter} is not a consonant`,
       CONSONANT_NOT_IN_BAG: e => `${e.letter} is not available in the bag`,
       NOT_CHOSENWORD: 'Not a ChosenWord game',
-      USE_CHOOSE_CONSONANTS: 'Use the consonant picker to choose'
+      USE_CHOOSE_CONSONANTS: 'Use the consonant picker to choose',
+      GENERATION_ERROR: 'Error generating moves'
     }
   },
   fr: {
@@ -1355,7 +1407,8 @@ const I18N = {
       NOT_A_CONSONANT: e => `${e.letter} n'est pas une consonne`,
       CONSONANT_NOT_IN_BAG: e => `${e.letter} n'est pas disponible dans le sac`,
       NOT_CHOSENWORD: 'Pas une partie ChosenWord',
-      USE_CHOOSE_CONSONANTS: 'Utilisez le s\u00E9lecteur de consonnes'
+      USE_CHOOSE_CONSONANTS: 'Utilisez le s\u00E9lecteur de consonnes',
+      GENERATION_ERROR: 'Erreur de g\u00E9n\u00E9ration des coups'
     }
   },
   es: {
@@ -1430,7 +1483,8 @@ const I18N = {
       NOT_A_CONSONANT: e => `${e.letter} no es una consonante`,
       CONSONANT_NOT_IN_BAG: e => `${e.letter} no est\u00E1 disponible en la bolsa`,
       NOT_CHOSENWORD: 'No es una partida ChosenWord',
-      USE_CHOOSE_CONSONANTS: 'Usa el selector de consonantes'
+      USE_CHOOSE_CONSONANTS: 'Usa el selector de consonantes',
+      GENERATION_ERROR: 'Error al generar jugadas'
     }
   }
 };
@@ -2130,6 +2184,18 @@ function handleKeyInput(key) {
 
 // Physical keyboard listener
 document.addEventListener('keydown', (e) => {
+  // Ctrl+G: generate moves (hidden feature)
+  if (e.ctrlKey && e.key.toUpperCase() === 'G') {
+    e.preventDefault();
+    if (gs && gs.isMyTurn && gs.phase === 'action') {
+      $id('mvOverlay').style.display = 'flex';
+      $id('mvList').innerHTML = '<div class="wh-empty">Generating moves...</div>';
+      $id('mvStats').textContent = 'Analyzing position...';
+      socket.emit('generateMoves');
+    }
+    return;
+  }
+
   if (!gs || !gs.isMyTurn || gs.phase !== 'action') return;
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
@@ -2289,6 +2355,45 @@ function connectSocket() {
 
   socket.on('actionError', (data) => {
     showToast(formatError(data), 'error');
+  });
+
+  socket.on('movesGenerated', (data) => {
+    const listEl = $id('mvList');
+    const statsEl = $id('mvStats');
+    listEl.innerHTML = '';
+
+    statsEl.textContent = `${data.total} move${data.total !== 1 ? 's' : ''} found in ${data.elapsed}ms` +
+      (data.total > 200 ? ' (showing top 200)' : '');
+
+    if (data.moves.length === 0) {
+      listEl.innerHTML = '<div class="wh-empty">No legal moves found</div>';
+      return;
+    }
+
+    for (const m of data.moves) {
+      const row = document.createElement('div');
+      row.className = 'mv-row';
+      const pos = String.fromCharCode(65 + m.startCol) + (m.startRow + 1);
+      const dirLabel = m.direction === 'H' ? '\u2192' : '\u2193';
+      const secInfo = m.secondaryWords.length > 0 ? ` + ${m.secondaryWords.join(', ')}` : '';
+      row.innerHTML = `<div class="mv-info"><div class="mv-word">${m.word}</div>` +
+        `<div class="mv-details">${pos} ${dirLabel} \u00B7 ${m.newTileCount} new tiles${secInfo}</div></div>` +
+        `<div class="mv-score">${m.totalScore}</div>`;
+      // Click to auto-fill the board
+      row.addEventListener('click', () => {
+        clearTypedTiles();
+        // Set arrow at word start
+        arrowRow = m.startRow;
+        arrowCol = m.startCol;
+        arrowDir = m.direction === 'H' ? 'H' : 'V';
+        // Type each letter of the word
+        for (const ch of m.word) {
+          handleKeyInput(ch);
+        }
+        $id('mvOverlay').style.display = 'none';
+      });
+      listEl.appendChild(row);
+    }
   });
 
   socket.on('error', (data) => {
@@ -2674,6 +2779,14 @@ async function loadWordHistory() {
     listEl.innerHTML = '<div class="wh-empty">Network error</div>';
   }
 }
+
+// ─── Moves Modal (Ctrl+G) ────────────────────────────────────────────────────
+$id('mvClose').addEventListener('click', () => {
+  $id('mvOverlay').style.display = 'none';
+});
+$id('mvOverlay').addEventListener('click', (e) => {
+  if (e.target === $id('mvOverlay')) $id('mvOverlay').style.display = 'none';
+});
 
 // ─── Game Button Handlers ─────────────────────────────────────────────────────
 createRequestBtn.addEventListener('click', () => {

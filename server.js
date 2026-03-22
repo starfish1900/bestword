@@ -6,6 +6,8 @@ const fs = require('fs');
 const path = require('path');
 const mongoose = require('mongoose');
 const { DAWG } = require('./dawg');
+const { GADDAG } = require('./gaddag');
+const { generateMoves } = require('./movegen');
 const game = require('./game');
 const { router: authRouter } = require('./auth');
 const { verifyMailConfig } = require('./email');
@@ -60,6 +62,20 @@ dawgs.es = DAWG.build(wordsEs);
 console.log('Spanish DAWG built');
 
 function getDawg(lang) { return dawgs[lang] || dawgs.en; }
+
+// ─── Build GADDAGs for move generation ───────────────────────────────────────
+const gaddags = {};
+
+console.log('Building English GADDAG...');
+gaddags.en = GADDAG.build(wordsEn);
+
+console.log('Building French GADDAG...');
+gaddags.fr = GADDAG.build(wordsFr);
+
+console.log('Building Spanish GADDAG...');
+gaddags.es = GADDAG.build(wordsEs);
+
+function getGaddag(lang) { return gaddags[lang] || gaddags.en; }
 
 // ─── State ─────────────────────────────────────────────────────────────────────
 const games = new Map();          // gameId -> game state
@@ -588,6 +604,56 @@ io.on('connection', (socket) => {
     }
 
     if (!checkFinishedAndNotify(gameId, g)) sendGameState(g);
+  });
+
+  // ─── Move Generation (Ctrl+G hidden feature) ────────────────────────────
+  socket.on('generateMoves', async () => {
+    if (!playerToken) return;
+    const gameId = playerGames.get(playerToken);
+    if (!gameId) return;
+    const g = games.get(gameId);
+    if (!g || g.phase === 'finished') return;
+    if (game.getCurrentPlayer(g) !== playerToken) {
+      socket.emit('actionError', { code: 'NOT_YOUR_TURN' });
+      return;
+    }
+    if (g.phase !== 'action') {
+      socket.emit('actionError', { code: 'NOT_ACTION_PHASE' });
+      return;
+    }
+
+    const player = g.players[playerToken];
+    const gaddag = getGaddag(g.lang);
+    const dawg = getDawg(g.lang);
+
+    // Get word history for ChosenWord
+    let wordHistorySet = null;
+    if (g.variant === 'chosenword' && MONGODB_URI) {
+      try {
+        const playerDoc = await Player.findOne({ playerToken });
+        if (playerDoc) {
+          const histDocs = await WordHistory.find({ playerId: playerDoc._id, lang: g.lang }).select('word -_id');
+          wordHistorySet = histDocs.map(h => h.word);
+        }
+      } catch (err) {
+        console.error('Word history fetch for movegen:', err.message);
+      }
+    }
+
+    try {
+      const result = generateMoves(
+        g.board, player.rack, g.bag, gaddag, dawg,
+        g.lang, g.bridgeScoring, wordHistorySet
+      );
+      socket.emit('movesGenerated', {
+        moves: result.moves.slice(0, 200), // cap at top 200
+        total: result.moves.length,
+        elapsed: result.elapsed
+      });
+    } catch (err) {
+      console.error('Move generation error:', err);
+      socket.emit('actionError', { code: 'GENERATION_ERROR' });
+    }
   });
 
   // ─── Chat ────────────────────────────────────────────────────────────────
