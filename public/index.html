@@ -2382,14 +2382,33 @@ function connectSocket() {
       // Click to auto-fill the board
       row.addEventListener('click', () => {
         clearTypedTiles();
-        // Set arrow at word start
-        arrowRow = m.startRow;
-        arrowCol = m.startCol;
-        arrowDir = m.direction === 'H' ? 'H' : 'V';
-        // Type each letter of the word
-        for (const ch of m.word) {
-          handleKeyInput(ch);
+
+        // Find the first new tile position (skip existing board tiles)
+        let firstNewR = m.startRow, firstNewC = m.startCol;
+        for (let i = 0; i < m.word.length; i++) {
+          const cr = m.startRow + (m.direction === 'V' ? i : 0);
+          const cc = m.startCol + (m.direction === 'H' ? i : 0);
+          if (gs.board[cr][cc] === null) {
+            firstNewR = cr;
+            firstNewC = cc;
+            break;
+          }
         }
+
+        // Set arrow at first empty cell of the word
+        arrowPos = { row: firstNewR, col: firstNewC };
+        arrowDir = m.direction === 'H' ? 'H' : 'V';
+        inputActive = true;
+
+        // Type only the new letters (handleKeyInput skips occupied cells)
+        for (let i = 0; i < m.word.length; i++) {
+          const cr = m.startRow + (m.direction === 'V' ? i : 0);
+          const cc = m.startCol + (m.direction === 'H' ? i : 0);
+          if (gs.board[cr][cc] === null) {
+            handleKeyInput(m.word[i]);
+          }
+        }
+
         $id('mvOverlay').style.display = 'none';
       });
       listEl.appendChild(row);
