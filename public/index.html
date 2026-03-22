@@ -1201,7 +1201,7 @@
           <div class="picker-label" id="pickerLabel">Choose <span id="pickerCount">2</span> consonant(s):</div>
           <div class="picker-tiles" id="pickerTiles"></div>
           <div class="picker-selected">
-            Selected: <span id="pickerSelected">-</span>
+            <span id="pickerSelectedLabel">Selected</span>: <span id="pickerSelected">-</span>
           </div>
           <button class="btn btn-primary" id="confirmPickBtn" disabled>Confirm Choice</button>
         </div>
@@ -1284,6 +1284,13 @@ const I18N = {
     choose_consonants: 'Choose consonants',
     picker_no_more: 'No more of this letter available',
     picker_no_duplicate: 'Must choose two different consonants',
+    picker_label: n => `Choose ${n} consonant${n !== 1 ? 's' : ''}:`,
+    picker_selected: 'Selected',
+    picker_confirm: 'Confirm Choice',
+    picker_rack_full: 'Rack full \u2014 no choice needed',
+    opp_rack_title: "Opponent's Rack",
+    bridge_active: '\u{1F309} Bridge scoring active',
+    variant_chosenword: 'ChosenWord \u2014 Perfect Information',
     opp_played: (w, s) => `Opponent played ${w} for +${s}`,
     you_played: (w, s) => `You played ${w} for +${s}!`,
     not_on_rack: l => `${l} is not available on your rack`,
@@ -1362,6 +1369,13 @@ const I18N = {
     choose_consonants: 'Choisir des consonnes',
     picker_no_more: 'Plus de cette lettre disponible',
     picker_no_duplicate: 'Vous devez choisir deux consonnes diff\u00E9rentes',
+    picker_label: n => `Choisissez ${n} consonne${n !== 1 ? 's' : ''}\u00A0:`,
+    picker_selected: 'S\u00E9lection',
+    picker_confirm: 'Confirmer le choix',
+    picker_rack_full: 'Chevalet plein \u2014 aucun choix n\u00E9cessaire',
+    opp_rack_title: "Chevalet de l'adversaire",
+    bridge_active: '\u{1F309} Scoring Ponts actif',
+    variant_chosenword: 'ChosenWord \u2014 Information parfaite',
     opp_played: (w, s) => `Adversaire a jou\u00E9 ${w} pour +${s}`,
     you_played: (w, s) => `Vous avez jou\u00E9 ${w} pour +${s}\u00A0!`,
     not_on_rack: l => `${l} n'est pas sur votre chevalet`,
@@ -1440,6 +1454,13 @@ const I18N = {
     choose_consonants: 'Elegir consonantes',
     picker_no_more: 'No hay m\u00E1s de esta letra disponible',
     picker_no_duplicate: 'Debes elegir dos consonantes diferentes',
+    picker_label: n => `Elige ${n} consonante${n !== 1 ? 's' : ''}:`,
+    picker_selected: 'Selecci\u00F3n',
+    picker_confirm: 'Confirmar elecci\u00F3n',
+    picker_rack_full: 'Atril lleno \u2014 no se necesita elecci\u00F3n',
+    opp_rack_title: 'Atril del oponente',
+    bridge_active: '\u{1F309} Puntuaci\u00F3n Puentes activa',
+    variant_chosenword: 'ChosenWord \u2014 Informaci\u00F3n perfecta',
     opp_played: (w, s) => `El oponente jug\u00F3 ${w} por +${s}`,
     you_played: (w, s) => `Jugaste ${w} por +${s}\u00A0!`,
     not_on_rack: l => `${l} no est\u00E1 en tu atril`,
@@ -1828,12 +1849,14 @@ function renderConsonantPicker() {
   const totalAvail = Object.values(gs.consonantsAvailable).reduce((a, b) => a + b, 0);
   toChoose = Math.min(toChoose, totalAvail);
 
-  $id('pickerCount').textContent = toChoose;
+  $id('pickerLabel').textContent = t('picker_label')(toChoose);
+  $id('confirmPickBtn').textContent = t('picker_confirm');
+  $id('pickerSelectedLabel').textContent = t('picker_selected');
   const tilesEl = $id('pickerTiles');
   tilesEl.innerHTML = '';
 
   if (toChoose === 0) {
-    tilesEl.innerHTML = '<span style="color:var(--text2);font-size:12px;">Rack full — no choice needed</span>';
+    tilesEl.innerHTML = '<span style="color:var(--text2);font-size:12px;">' + t('picker_rack_full') + '</span>';
     $id('confirmPickBtn').disabled = false;
     pickedConsonants = [];
     return;
@@ -2019,7 +2042,7 @@ function renderLabels() {
   const bridgeInd = $id('bridgeIndicator');
   if (bridgeInd) {
     bridgeInd.style.display = (gs && gs.bridgeScoring) ? 'block' : 'none';
-    bridgeInd.textContent = getLang() === 'fr' ? '\u{1F309} Scoring Ponts actif' : getLang() === 'es' ? '\u{1F309} Puntuaci\u00F3n Puentes activa' : '\u{1F309} Bridge scoring active';
+    bridgeInd.textContent = t('bridge_active');
   }
 
   // Variant indicator
@@ -2027,8 +2050,7 @@ function renderLabels() {
   if (varInd) {
     if (gs && gs.variant === 'chosenword') {
       varInd.style.display = 'block';
-      const labels = { en: 'ChosenWord — Perfect Information', fr: 'ChosenWord — Information parfaite', es: 'ChosenWord — Informaci\u00F3n perfecta' };
-      varInd.textContent = labels[getLang()] || labels.en;
+      varInd.textContent = t('variant_chosenword');
     } else {
       varInd.style.display = 'none';
     }
@@ -2036,8 +2058,7 @@ function renderLabels() {
 
   // Opponent rack label
   if (gs && gs.variant === 'chosenword') {
-    const oppRackLabel = { en: "Opponent's Rack", fr: "Atril de l'adversaire", es: 'Atril del oponente' };
-    $id('panelOppRack').textContent = oppRackLabel[getLang()] || oppRackLabel.en;
+    $id('panelOppRack').textContent = t('opp_rack_title');
   }
 }
 
