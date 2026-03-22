@@ -63,19 +63,25 @@ console.log('Spanish DAWG built');
 
 function getDawg(lang) { return dawgs[lang] || dawgs.en; }
 
-// ─── Build GADDAGs for move generation ───────────────────────────────────────
+// ─── Load pre-built GADDAGs for move generation ─────────────────────────────
 const gaddags = {};
 
-console.log('Building English GADDAG...');
-gaddags.en = GADDAG.build(wordsEn);
+const gaddagFiles = {
+  en: path.join(__dirname, 'english.gaddag'),
+  fr: path.join(__dirname, 'french.gaddag'),
+  es: path.join(__dirname, 'spanish.gaddag')
+};
 
-console.log('Building French GADDAG...');
-gaddags.fr = GADDAG.build(wordsFr);
+for (const [lang, filePath] of Object.entries(gaddagFiles)) {
+  if (fs.existsSync(filePath)) {
+    console.log(`Loading ${lang} GADDAG...`);
+    gaddags[lang] = GADDAG.load(filePath);
+  } else {
+    console.warn(`GADDAG file not found: ${filePath} — move generation disabled for ${lang}`);
+  }
+}
 
-console.log('Building Spanish GADDAG...');
-gaddags.es = GADDAG.build(wordsEs);
-
-function getGaddag(lang) { return gaddags[lang] || gaddags.en; }
+function getGaddag(lang) { return gaddags[lang] || gaddags.en || null; }
 
 // ─── State ─────────────────────────────────────────────────────────────────────
 const games = new Map();          // gameId -> game state
@@ -625,6 +631,11 @@ io.on('connection', (socket) => {
     const player = g.players[playerToken];
     const gaddag = getGaddag(g.lang);
     const dawg = getDawg(g.lang);
+
+    if (!gaddag) {
+      socket.emit('actionError', { code: 'GENERATION_ERROR' });
+      return;
+    }
 
     // Get word history for ChosenWord
     let wordHistorySet = null;

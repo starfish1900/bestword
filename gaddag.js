@@ -93,6 +93,19 @@ class GADDAG {
     }
   }
 
+  // ─── Load from pre-built binary file ────────────────────────────────────────
+  static load(filePath) {
+    const fs = require('fs');
+    const buf = fs.readFileSync(filePath);
+    const rootIndex = buf.readUInt32LE(0);
+    // Copy the body into a properly aligned Uint32Array
+    const bodyBuf = buf.subarray(4);
+    const data = new Uint32Array(bodyBuf.buffer.slice(bodyBuf.byteOffset, bodyBuf.byteOffset + bodyBuf.byteLength));
+    const sizeMB = (data.byteLength / (1024 * 1024)).toFixed(2);
+    console.log(`GADDAG loaded: ${data.length} arcs, ${sizeMB} MB, root=${rootIndex}`);
+    return new GADDAG(data, rootIndex);
+  }
+
   // ─── Build from word list ──────────────────────────────────────────────────
   static build(words) {
     const t0 = Date.now();
