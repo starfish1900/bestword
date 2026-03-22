@@ -640,6 +640,11 @@ function performChooseConsonants(game, playerToken, chosenLetters) {
     return { error: { code: 'WRONG_CONSONANT_COUNT', expected: toChoose, got: chosenLetters ? chosenLetters.length : 0 } };
   }
 
+  // Reject duplicate consonants (must choose two different letters)
+  if (toChoose === 2 && chosenLetters[0] === chosenLetters[1]) {
+    return { error: { code: 'DUPLICATE_CONSONANT', letter: chosenLetters[0] } };
+  }
+
   // Validate each chosen letter is a consonant available in the bag
   const bagCopy = { ...game.bag };
   for (const letter of chosenLetters) {

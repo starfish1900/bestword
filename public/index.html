@@ -1283,6 +1283,7 @@ const I18N = {
     rack_full_skip: 'Rack full \u2014 draw skipped',
     choose_consonants: 'Choose consonants',
     picker_no_more: 'No more of this letter available',
+    picker_no_duplicate: 'Must choose two different consonants',
     opp_played: (w, s) => `Opponent played ${w} for +${s}`,
     you_played: (w, s) => `You played ${w} for +${s}!`,
     not_on_rack: l => `${l} is not available on your rack`,
@@ -1330,6 +1331,7 @@ const I18N = {
       WRONG_CONSONANT_COUNT: e => `Must choose exactly ${e.expected} consonant(s)`,
       NOT_A_CONSONANT: e => `${e.letter} is not a consonant`,
       CONSONANT_NOT_IN_BAG: e => `${e.letter} is not available in the bag`,
+      DUPLICATE_CONSONANT: e => `Cannot choose ${e.letter} twice \u2014 pick two different consonants`,
       NOT_CHOSENWORD: 'Not a ChosenWord game',
       USE_CHOOSE_CONSONANTS: 'Use the consonant picker to choose',
       GENERATION_ERROR: 'Error generating moves'
@@ -1359,6 +1361,7 @@ const I18N = {
     rack_full_skip: 'Chevalet plein \u2014 pioche ignor\u00E9e',
     choose_consonants: 'Choisir des consonnes',
     picker_no_more: 'Plus de cette lettre disponible',
+    picker_no_duplicate: 'Vous devez choisir deux consonnes diff\u00E9rentes',
     opp_played: (w, s) => `Adversaire a jou\u00E9 ${w} pour +${s}`,
     you_played: (w, s) => `Vous avez jou\u00E9 ${w} pour +${s}\u00A0!`,
     not_on_rack: l => `${l} n'est pas sur votre chevalet`,
@@ -1406,6 +1409,7 @@ const I18N = {
       WRONG_CONSONANT_COUNT: e => `Vous devez choisir exactement ${e.expected} consonne(s)`,
       NOT_A_CONSONANT: e => `${e.letter} n'est pas une consonne`,
       CONSONANT_NOT_IN_BAG: e => `${e.letter} n'est pas disponible dans le sac`,
+      DUPLICATE_CONSONANT: e => `Impossible de choisir ${e.letter} deux fois \u2014 choisissez deux consonnes diff\u00E9rentes`,
       NOT_CHOSENWORD: 'Pas une partie ChosenWord',
       USE_CHOOSE_CONSONANTS: 'Utilisez le s\u00E9lecteur de consonnes',
       GENERATION_ERROR: 'Erreur de g\u00E9n\u00E9ration des coups'
@@ -1435,6 +1439,7 @@ const I18N = {
     rack_full_skip: 'Atril lleno \u2014 se omiti\u00F3 la pioche',
     choose_consonants: 'Elegir consonantes',
     picker_no_more: 'No hay m\u00E1s de esta letra disponible',
+    picker_no_duplicate: 'Debes elegir dos consonantes diferentes',
     opp_played: (w, s) => `El oponente jug\u00F3 ${w} por +${s}`,
     you_played: (w, s) => `Jugaste ${w} por +${s}\u00A0!`,
     not_on_rack: l => `${l} no est\u00E1 en tu atril`,
@@ -1482,6 +1487,7 @@ const I18N = {
       WRONG_CONSONANT_COUNT: e => `Debes elegir exactamente ${e.expected} consonante(s)`,
       NOT_A_CONSONANT: e => `${e.letter} no es una consonante`,
       CONSONANT_NOT_IN_BAG: e => `${e.letter} no est\u00E1 disponible en la bolsa`,
+      DUPLICATE_CONSONANT: e => `No puedes elegir ${e.letter} dos veces \u2014 elige dos consonantes diferentes`,
       NOT_CHOSENWORD: 'No es una partida ChosenWord',
       USE_CHOOSE_CONSONANTS: 'Usa el selector de consonantes',
       GENERATION_ERROR: 'Error al generar jugadas'
@@ -1863,10 +1869,9 @@ function togglePickConsonant(letter, availCount, toChoose) {
     // Deselect
     pickedConsonants.splice(idx, 1);
   } else {
-    // Check if already picked max of this letter
-    const pickedOfThis = pickedConsonants.filter(c => c === letter).length;
-    if (pickedOfThis >= availCount) {
-      showToast(t('picker_no_more') || 'No more of this letter available', 'error');
+    // Cannot pick the same consonant twice
+    if (pickedConsonants.includes(letter)) {
+      showToast(t('picker_no_duplicate') || 'Must choose two different consonants', 'error');
       return;
     }
     if (pickedConsonants.length >= toChoose) {
