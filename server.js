@@ -9,6 +9,7 @@ const { DAWG } = require('./dawg');
 const { GADDAG } = require('./gaddag');
 const { generateMoves } = require('./movegen');
 const game = require('./game');
+const { AI_TOKEN, AI_NAME, executeAITurn } = require('./ai');
 const { router: authRouter } = require('./auth');
 const { verifyMailConfig } = require('./email');
 const Player = require('./models/Player');
@@ -112,6 +113,83 @@ function broadcastLobby() {
 function sendGameState(gameObj) {
   for (const token of gameObj.playerOrder) {
     emitToPlayer(token, 'gameState', game.getGameState(gameObj, token));
+  }
+}
+
+// ─── AI Turn Scheduling ───────────────────────────────────────────────────────
+function scheduleAITurn(gameId) {
+  // Delay 1-2 seconds to feel natural
+  const delay = 1000 + Math.random() * 1000;
+  setTimeout(async () => {
+    const g = games.get(gameId);
+    if (!g || g.phase === 'finished') return;
+    if (game.getCurrentPlayer(g) !== AI_TOKEN) return;
+
+    const gaddag = getGaddag(g.lang);
+    const dawg = getDawg(g.lang);
+
+    if (!gaddag) {
+      console.error('AI: GADDAG not available for', g.lang);
+      return;
+    }
+
+    try {
+      const result = await executeAITurn(g, gameId, gaddag, dawg, WordHistory, Player);
+      console.log(`AI [${gameId}]: ${result.action || 'error'}${result.word ? ' ' + result.word : ''}${result.score ? ' (' + result.score + ')' : ''}${result.error ? ' — ' + result.error : ''}`);
+    } catch (err) {
+      console.error('AI turn error:', err);
+    }
+
+    // Check if game ended
+    if (g.phase === 'finished') {
+      const gameResult = game.getGameResult(g);
+      for (const token of g.playerOrder) {
+        const state = game.getGameState(g, token);
+        state.result = {
+          winner: gameResult.winner,
+          reason: gameResult.reason,
+          isWinner: token === gameResult.winner,
+          isDraw: gameResult.reason === 'draw'
+        };
+        emitToPlayer(token, 'gameOver', state);
+      }
+      saveGameRecord(g, gameResult).catch(err => console.error('Failed to save AI game record:', err.message));
+      setTimeout(() => cleanupGame(gameId), 5000);
+      return;
+    }
+
+    // Send updated state to human player
+    sendGameState(g);
+
+    // Notify human about AI's word placement
+    if (g.isAIGame) {
+      const lastMove = g.moveHistory[g.moveHistory.length - 1];
+      if (lastMove && lastMove.action === 'PLACE') {
+        const humanToken = g.playerOrder.find(t => t !== AI_TOKEN);
+        if (humanToken) {
+          emitToPlayer(humanToken, 'wordPlaced', {
+            principalWord: lastMove.word,
+            secondaryWords: lastMove.secondaryWords || [],
+            score: lastMove.score,
+            newTiles: lastMove.newTiles,
+            playedBy: 'opponent'
+          });
+        }
+      }
+    }
+
+    // If still AI's turn (shouldn't happen normally, but safety)
+    if (game.getCurrentPlayer(g) === AI_TOKEN && g.phase !== 'finished') {
+      scheduleAITurn(gameId);
+    }
+  }, delay);
+}
+
+// After human action: send state and schedule AI if needed
+function sendStateAndMaybeAI(g, gameId) {
+  sendGameState(g);
+  if (g.isAIGame && g.phase !== 'finished' && game.getCurrentPlayer(g) === AI_TOKEN) {
+    scheduleAITurn(gameId);
   }
 }
 
@@ -469,6 +547,63 @@ io.on('connection', (socket) => {
     }
   });
 
+  // ─── Play vs AI ──────────────────────────────────────────────────────────
+  socket.on('playAI', (data) => {
+    if (!playerToken) return;
+    if (playerGames.has(playerToken)) {
+      socket.emit('error', { message: 'You are already in a game' });
+      return;
+    }
+
+    const validMinutes = [5, 15, 25, 35];
+    const minutes = (data && validMinutes.includes(data.minutes)) ? data.minutes : 15;
+    const timeControl = { minutes, increment: 30 };
+    const lang = (data && ['fr', 'es'].includes(data.lang)) ? data.lang : 'en';
+    const bridgeScoring = !!(data && data.bridgeScoring);
+    const variant = (data && data.variant === 'chosenword') ? 'chosenword' : 'bestword';
+
+    const gameId = uuidv4();
+    try {
+      // Randomize who goes first
+      const humanFirst = Math.random() < 0.5;
+      const p1Token = humanFirst ? playerToken : AI_TOKEN;
+      const p1Name = humanFirst ? (playerNames.get(playerToken) || 'Anonymous') : AI_NAME;
+
+      const g = game.createGame(gameId, p1Token, p1Name, getDawg(lang), timeControl, lang, bridgeScoring, variant);
+
+      const p2Token = humanFirst ? AI_TOKEN : playerToken;
+      const p2Name = humanFirst ? AI_NAME : (playerNames.get(playerToken) || 'Anonymous');
+      game.addPlayer(g, p2Token, p2Name);
+
+      g.isAIGame = true;
+      g.aiToken = AI_TOKEN;
+
+      games.set(gameId, g);
+      playerGames.set(playerToken, gameId);
+
+      const humanIndex = g.playerOrder.indexOf(playerToken);
+      socket.emit('gameStarted', {
+        gameId,
+        opponentName: AI_NAME,
+        playerIndex: humanIndex,
+        timeControl,
+        lang,
+        bridgeScoring,
+        variant
+      });
+
+      sendGameState(g);
+
+      // If AI goes first, schedule its turn
+      if (game.getCurrentPlayer(g) === AI_TOKEN) {
+        scheduleAITurn(gameId);
+      }
+    } catch (err) {
+      console.error('Error creating AI game:', err);
+      socket.emit('error', { message: 'Error creating AI game: ' + err.message });
+    }
+  });
+
   // ─── Game Actions ────────────────────────────────────────────────────────
 
   // Helper: if an action returns timeout error, finish the game by timeout
@@ -551,7 +686,7 @@ io.on('connection', (socket) => {
 
     const result = game.performPass(g, playerToken);
     if (handleActionResult(result, gameId, g)) return;
-    if (!checkFinishedAndNotify(gameId, g)) sendGameState(g);
+    if (!checkFinishedAndNotify(gameId, g)) sendStateAndMaybeAI(g, gameId);
   });
 
   socket.on('noWords', () => {
@@ -563,7 +698,7 @@ io.on('connection', (socket) => {
 
     const result = game.performNoWords(g, playerToken);
     if (handleActionResult(result, gameId, g)) return;
-    sendGameState(g);
+    sendStateAndMaybeAI(g, gameId);
   });
 
   socket.on('placeWord', async (data) => {
@@ -609,7 +744,7 @@ io.on('connection', (socket) => {
       });
     }
 
-    if (!checkFinishedAndNotify(gameId, g)) sendGameState(g);
+    if (!checkFinishedAndNotify(gameId, g)) sendStateAndMaybeAI(g, gameId);
   });
 
   // ─── Move Generation (Ctrl+G hidden feature) ────────────────────────────
@@ -709,6 +844,12 @@ io.on('connection', (socket) => {
     if (gameId && games.has(gameId)) {
       const g = games.get(gameId);
       if (g.phase !== 'finished' && g.players[playerToken]) {
+        // AI games: end immediately on human disconnect
+        if (g.isAIGame) {
+          finishGameByDisconnect(gameId, playerToken);
+          return;
+        }
+
         g.players[playerToken].connected = false;
 
         const opp = game.getOpponent(g, playerToken);

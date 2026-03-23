@@ -1041,6 +1041,7 @@
       <option value="chosenword">ChosenWord</option>
     </select>
     <button class="btn btn-primary" id="createRequestBtn">Create Game</button>
+    <button class="btn btn-secondary" id="playAIBtn" style="border-color:var(--accent);">&#x1F916; vs AI</button>
     <button class="btn btn-danger" id="cancelRequestBtn" style="display:none;">Cancel</button>
   </div>
   <div class="my-request-banner" id="myRequestBanner" style="display:none;">
@@ -2852,6 +2853,14 @@ cancelRequestBtn.addEventListener('click', () => {
   createRequestBtn.style.display = '';
   cancelRequestBtn.style.display = 'none';
   myRequestBanner.style.display = 'none';
+});
+
+$id('playAIBtn').addEventListener('click', () => {
+  const minutes = parseInt($id('tcSelect').value) || 15;
+  const lang = $id('langSelect').value || 'en';
+  const bridgeScoring = $id('bridgeSelect').value === 'yes';
+  const variant = $id('variantSelect').value || 'bestword';
+  socket.emit('playAI', { minutes, lang, bridgeScoring, variant });
 });
 
 drawBtn.addEventListener('click', () => { socket.emit('draw'); });
