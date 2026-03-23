@@ -2,6 +2,8 @@
 // BestWord/ChosenWord AI Opponent
 // Uses GADDAG move generation with adaptive NO WORDS threshold
 // and single-pass consonant selection for ChosenWord.
+// Four difficulty levels: easy, medium, hard, expert.
+// AI does NOT use word history (vocabulary depletion is a human challenge).
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const { generateMoves } = require('./movegen');
@@ -10,33 +12,59 @@ const game = require('./game');
 const AI_TOKEN = 'AI_PLAYER';
 const AI_NAME = 'BestWord AI';
 
+// ─── Difficulty: how the AI picks from ranked moves ──────────────────────────
+// Easy:   random from top 20
+// Medium: random from top 5
+// Hard:   always top move
+// Expert: always top move + higher NO WORDS threshold (pickier, waits for better)
+const DIFFICULTY_CONFIG = {
+  easy:   { pickRange: 20, thresholdMult: 0.3, label: 'Easy' },
+  medium: { pickRange: 5,  thresholdMult: 0.6, label: 'Medium' },
+  hard:   { pickRange: 1,  thresholdMult: 1.0, label: 'Hard' },
+  expert: { pickRange: 1,  thresholdMult: 1.2, label: 'Expert' }
+};
+
+function getDifficultyConfig(difficulty) {
+  return DIFFICULTY_CONFIG[difficulty] || DIFFICULTY_CONFIG.hard;
+}
+
+// Pick a move from the ranked list based on difficulty
+function pickMove(moves, difficulty) {
+  if (moves.length === 0) return null;
+  const cfg = getDifficultyConfig(difficulty);
+  const range = Math.min(cfg.pickRange, moves.length);
+  if (range === 1) return moves[0];
+  const idx = Math.floor(Math.random() * range);
+  return moves[idx];
+}
+
 // ─── Adaptive NO WORDS threshold ─────────────────────────────────────────────
-// Based on bag size and score differential
-function getNoWordsThreshold(g, aiToken) {
+function getNoWordsThreshold(g, aiToken, difficulty) {
   const bagTotal = Object.values(g.bag).reduce((a, b) => a + b, 0);
   const opponent = game.getOpponent(g, aiToken);
   const aiScore = g.players[aiToken].score;
   const oppScore = opponent ? g.players[opponent].score : 0;
-  const scoreDiff = aiScore - oppScore; // positive = AI ahead
+  const scoreDiff = aiScore - oppScore;
   const rackSize = g.players[aiToken].rack ? g.players[aiToken].rack.length : 0;
+  const cfg = getDifficultyConfig(difficulty);
 
   // Base threshold from bag size
   let threshold;
   if (bagTotal > 150) {
-    threshold = 90;       // Opening: be selective
+    threshold = 90;
   } else if (bagTotal > 100) {
-    threshold = 70;       // Early midgame
+    threshold = 70;
   } else if (bagTotal > 60) {
-    threshold = 50;       // Midgame
+    threshold = 50;
   } else if (bagTotal > 30) {
-    threshold = 30;       // Late game
+    threshold = 30;
   } else if (bagTotal > 15) {
-    threshold = 15;       // Endgame
+    threshold = 15;
   } else {
-    threshold = 0;        // Final tiles: play anything
+    threshold = 0;
   }
 
-  // Small rack: lower threshold — first few turns have limited options
+  // Small rack: lower threshold
   if (rackSize <= 3) {
     threshold = Math.min(threshold, 15);
   } else if (rackSize <= 5) {
@@ -45,7 +73,7 @@ function getNoWordsThreshold(g, aiToken) {
     threshold = Math.min(threshold, 50);
   }
 
-  // Adjust for score differential
+  // Score differential adjustment
   if (scoreDiff < -150) {
     threshold = Math.max(0, threshold - 40);
   } else if (scoreDiff < -80) {
@@ -54,18 +82,18 @@ function getNoWordsThreshold(g, aiToken) {
     threshold += 15;
   }
 
+  // Apply difficulty multiplier
+  threshold = Math.round(threshold * cfg.thresholdMult);
+
   return threshold;
 }
 
 // ─── ChosenWord: single-pass consonant selection ─────────────────────────────
-// Build super-rack, generate all possible moves, group by consonant pair needed,
-// pick the pair that yields the highest-scoring move.
-function chooseBestConsonants(g, aiToken, gaddag, dawg, wordHistory) {
+function chooseBestConsonants(g, aiToken, gaddag, dawg, difficulty) {
   const player = g.players[aiToken];
   const rackCount = player.rack.length;
   const cfg = game.getLangConfig(g.lang);
 
-  // Determine how many to choose
   let toChoose = rackCount >= 10 ? 0 : rackCount === 9 ? 1 : 2;
   const availConsonants = game.consonantsInBag(g.bag, g.lang);
   toChoose = Math.min(toChoose, availConsonants);
@@ -80,11 +108,10 @@ function chooseBestConsonants(g, aiToken, gaddag, dawg, wordHistory) {
     }
   }
 
-  // Generate all possible moves with super-rack (capped for memory)
-  const result = generateMoves(g.board, superRack, g.bag, gaddag, dawg, g.lang, g.bridgeScoring, wordHistory, 5000);
+  // Generate moves with super-rack (no word history for AI)
+  const result = generateMoves(g.board, superRack, g.bag, gaddag, dawg, g.lang, g.bridgeScoring, null, 5000);
 
   if (result.moves.length === 0) {
-    // No moves possible with any consonants — pick any two available
     const available = [];
     for (const ch of cfg.consonants) {
       if ((g.bag[ch] || 0) > 0) available.push(ch);
@@ -98,36 +125,30 @@ function chooseBestConsonants(g, aiToken, gaddag, dawg, wordHistory) {
   const rackMap = {};
   for (const ch of player.rack) rackMap[ch] = (rackMap[ch] || 0) + 1;
 
-  let bestPair = null;
-  let bestScore = -1;
+  // Collect all valid (pair, score) candidates
+  const candidates = [];
 
   for (const move of result.moves) {
-    // Find consonants in new tiles that aren't on the current rack
     const rackCopy = { ...rackMap };
     const needed = [];
 
-    for (const word of [move.word]) {
-      // Walk through the word and check new tiles
-      let r = move.startRow, c = move.startCol;
-      for (let i = 0; i < word.length; i++) {
-        const ch = word[i];
-        const onBoard = g.board[r][c] !== null;
-        if (!onBoard && cfg.consonants.has(ch)) {
-          if ((rackCopy[ch] || 0) > 0) {
-            rackCopy[ch]--;
-          } else {
-            needed.push(ch);
-          }
+    let r = move.startRow, c = move.startCol;
+    for (let i = 0; i < move.word.length; i++) {
+      const ch = move.word[i];
+      const onBoard = g.board[r][c] !== null;
+      if (!onBoard && cfg.consonants.has(ch)) {
+        if ((rackCopy[ch] || 0) > 0) {
+          rackCopy[ch]--;
+        } else {
+          needed.push(ch);
         }
-        if (move.direction === 'H') c++; else r++;
       }
+      if (move.direction === 'H') c++; else r++;
     }
 
-    // Check if needed consonants match the toChoose requirement
     if (needed.length > toChoose) continue;
-    if (toChoose === 2 && needed.length === 2 && needed[0] === needed[1]) continue; // no duplicates
+    if (toChoose === 2 && needed.length === 2 && needed[0] === needed[1]) continue;
 
-    // Pad with any available consonant if needed < toChoose
     const pair = [...needed];
     if (pair.length < toChoose) {
       for (const ch of cfg.consonants) {
@@ -138,63 +159,50 @@ function chooseBestConsonants(g, aiToken, gaddag, dawg, wordHistory) {
       }
     }
 
-    if (pair.length === toChoose && move.totalScore > bestScore) {
-      // Verify no duplicates for toChoose === 2
-      if (toChoose === 2 && pair[0] === pair[1]) continue;
-      // Verify all are available in bag
-      const bagCopy = { ...g.bag };
-      let valid = true;
-      for (const ch of pair) {
-        if ((bagCopy[ch] || 0) <= 0) { valid = false; break; }
-        bagCopy[ch]--;
-      }
-      if (!valid) continue;
+    if (pair.length !== toChoose) continue;
+    if (toChoose === 2 && pair[0] === pair[1]) continue;
 
-      bestScore = move.totalScore;
-      bestPair = pair;
+    const bagCopy = { ...g.bag };
+    let valid = true;
+    for (const ch of pair) {
+      if ((bagCopy[ch] || 0) <= 0) { valid = false; break; }
+      bagCopy[ch]--;
     }
+    if (!valid) continue;
+
+    candidates.push({ pair, score: move.totalScore });
+    if (candidates.length >= 50) break;
   }
 
-  // Fallback: pick two random different consonants
-  if (!bestPair) {
+  if (candidates.length === 0) {
     const available = [];
     for (const ch of cfg.consonants) {
       if ((g.bag[ch] || 0) > 0) available.push(ch);
     }
-    bestPair = available.slice(0, toChoose);
+    return available.slice(0, toChoose);
   }
 
-  return bestPair;
+  // Pick based on difficulty
+  const diffCfg = getDifficultyConfig(difficulty);
+  const range = Math.min(diffCfg.pickRange, candidates.length);
+  const idx = range === 1 ? 0 : Math.floor(Math.random() * range);
+  return candidates[idx].pair;
 }
 
 // ─── AI Turn Execution ───────────────────────────────────────────────────────
-// Returns an object describing what the AI did, for logging/debugging.
-async function executeAITurn(g, gameId, gaddag, dawg, WordHistory, Player) {
+async function executeAITurn(g, gameId, gaddag, dawg) {
   const aiToken = AI_TOKEN;
   const player = g.players[aiToken];
   if (!player) return { error: 'AI player not found' };
 
+  const difficulty = g.aiDifficulty || 'hard';
+
   // ─── Draw Phase ────────────────────────────────────────────────────────────
   if (g.phase === 'draw' && game.getCurrentPlayer(g) === aiToken && !g.drawDone) {
     if (g.variant === 'chosenword') {
-      // Fetch AI word history
-      let wordHistory = null;
-      if (WordHistory && Player) {
-        try {
-          const aiDoc = await Player.findOne({ playerToken: AI_TOKEN });
-          if (aiDoc) {
-            const docs = await WordHistory.find({ playerId: aiDoc._id, lang: g.lang }).select('word -_id');
-            wordHistory = docs.map(d => d.word);
-          }
-        } catch (err) {
-          console.error('AI word history fetch error:', err.message);
-        }
-      }
-
-      const chosen = chooseBestConsonants(g, aiToken, gaddag, dawg, wordHistory);
+      const chosen = chooseBestConsonants(g, aiToken, gaddag, dawg, difficulty);
       const result = game.performChooseConsonants(g, aiToken, chosen);
       if (result.error) {
-        // Fallback: try empty (rack full skip)
         if (result.error.code === 'WRONG_CONSONANT_COUNT') {
           game.performChooseConsonants(g, aiToken, []);
         } else {
@@ -202,7 +210,6 @@ async function executeAITurn(g, gameId, gaddag, dawg, WordHistory, Player) {
         }
       }
     } else {
-      // BestWord: random draw
       const result = game.performDraw(g, aiToken);
       if (result.error) return { error: 'AI draw failed: ' + result.error.code };
     }
@@ -210,62 +217,42 @@ async function executeAITurn(g, gameId, gaddag, dawg, WordHistory, Player) {
 
   // ─── Action Phase ──────────────────────────────────────────────────────────
   if (g.phase === 'action' && game.getCurrentPlayer(g) === aiToken) {
-    // Fetch word history for ChosenWord
-    let wordHistory = null;
-    if (g.variant === 'chosenword' && WordHistory && Player) {
-      try {
-        const aiDoc = await Player.findOne({ playerToken: AI_TOKEN });
-        if (aiDoc) {
-          const docs = await WordHistory.find({ playerId: aiDoc._id, lang: g.lang }).select('word -_id');
-          wordHistory = docs.map(d => d.word);
-        }
-      } catch (err) {
-        console.error('AI word history fetch error:', err.message);
-      }
-    }
+    // No word history for AI — always full vocabulary
+    const result = generateMoves(g.board, player.rack, g.bag, gaddag, dawg, g.lang, g.bridgeScoring, null, 10000);
 
-    // Generate moves
-    const result = generateMoves(g.board, player.rack, g.bag, gaddag, dawg, g.lang, g.bridgeScoring, wordHistory, 10000);
-
-    const threshold = getNoWordsThreshold(g, aiToken);
-    const bestMove = result.moves.length > 0 ? result.moves[0] : null;
+    const threshold = getNoWordsThreshold(g, aiToken, difficulty);
+    const selectedMove = pickMove(result.moves, difficulty);
     const opponent = game.getOpponent(g, aiToken);
     const opponentPassed = opponent ? g.players[opponent].passed : false;
 
-    if (bestMove && bestMove.totalScore >= threshold) {
-      // Play the best move
+    if (selectedMove && selectedMove.totalScore >= threshold) {
       const placeResult = game.performPlaceWord(
         g, aiToken,
-        bestMove.startRow, bestMove.startCol,
-        bestMove.direction, bestMove.word,
+        selectedMove.startRow, selectedMove.startCol,
+        selectedMove.direction, selectedMove.word,
         dawg
       );
       if (placeResult.error) {
-        // Shouldn't happen — generator validated it — but handle gracefully
-        console.error('AI play error:', placeResult.error.code, bestMove.word);
-        // Try second best, etc.
-        for (let i = 1; i < Math.min(10, result.moves.length); i++) {
+        // Try alternatives from top of list
+        for (let i = 0; i < Math.min(20, result.moves.length); i++) {
           const alt = result.moves[i];
           const altResult = game.performPlaceWord(g, aiToken, alt.startRow, alt.startCol, alt.direction, alt.word, dawg);
           if (!altResult.error) {
             return { action: 'PLACE', word: alt.word, score: alt.totalScore };
           }
         }
-        // All failed — fall through to NO WORDS / PASS
       } else {
-        return { action: 'PLACE', word: bestMove.word, score: bestMove.totalScore };
+        return { action: 'PLACE', word: selectedMove.word, score: selectedMove.totalScore };
       }
     }
 
-    // Below threshold or no moves — try NO WORDS or PASS
+    // Below threshold or no moves
     if (!opponentPassed && g.drewCount > 0) {
-      // NO WORDS is legal
-      // But if we have a move (just below threshold), consider playing it
-      // in late game or when opponent is about to pass
+      // Consider playing anyway in late game
+      const bestMove = result.moves.length > 0 ? result.moves[0] : null;
       if (bestMove && bestMove.totalScore > 0) {
         const bagTotal = Object.values(g.bag).reduce((a, b) => a + b, 0);
         if (bagTotal < 30) {
-          // Late game: play it anyway
           const placeResult = game.performPlaceWord(
             g, aiToken,
             bestMove.startRow, bestMove.startCol,
@@ -284,6 +271,7 @@ async function executeAITurn(g, gameId, gaddag, dawg, WordHistory, Player) {
     }
 
     // Must play or pass
+    const bestMove = result.moves.length > 0 ? result.moves[0] : null;
     if (bestMove) {
       const placeResult = game.performPlaceWord(
         g, aiToken,
@@ -296,7 +284,6 @@ async function executeAITurn(g, gameId, gaddag, dawg, WordHistory, Player) {
       }
     }
 
-    // No valid moves at all — must pass
     const passResult = game.performPass(g, aiToken);
     if (!passResult.error) {
       return { action: 'PASS' };
@@ -311,7 +298,10 @@ async function executeAITurn(g, gameId, gaddag, dawg, WordHistory, Player) {
 module.exports = {
   AI_TOKEN,
   AI_NAME,
+  DIFFICULTY_CONFIG,
   executeAITurn,
   chooseBestConsonants,
-  getNoWordsThreshold
+  getNoWordsThreshold,
+  pickMove,
+  getDifficultyConfig
 };

@@ -134,7 +134,7 @@ function scheduleAITurn(gameId) {
     }
 
     try {
-      const result = await executeAITurn(g, gameId, gaddag, dawg, WordHistory, Player);
+      const result = await executeAITurn(g, gameId, gaddag, dawg);
       console.log(`AI [${gameId}]: ${result.action || 'error'}${result.word ? ' ' + result.word : ''}${result.score ? ' (' + result.score + ')' : ''}${result.error ? ' — ' + result.error : ''}`);
     } catch (err) {
       console.error('AI turn error:', err);
@@ -561,6 +561,8 @@ io.on('connection', (socket) => {
     const lang = (data && ['fr', 'es'].includes(data.lang)) ? data.lang : 'en';
     const bridgeScoring = !!(data && data.bridgeScoring);
     const variant = (data && data.variant === 'chosenword') ? 'chosenword' : 'bestword';
+    const validDifficulties = ['easy', 'medium', 'hard', 'expert'];
+    const difficulty = (data && validDifficulties.includes(data.difficulty)) ? data.difficulty : 'hard';
 
     const gameId = uuidv4();
     try {
@@ -577,14 +579,16 @@ io.on('connection', (socket) => {
 
       g.isAIGame = true;
       g.aiToken = AI_TOKEN;
+      g.aiDifficulty = difficulty;
 
       games.set(gameId, g);
       playerGames.set(playerToken, gameId);
 
       const humanIndex = g.playerOrder.indexOf(playerToken);
+      const diffLabel = { easy: 'Easy', medium: 'Medium', hard: 'Hard', expert: 'Expert' };
       socket.emit('gameStarted', {
         gameId,
-        opponentName: AI_NAME,
+        opponentName: AI_NAME + ' (' + (diffLabel[difficulty] || 'Hard') + ')',
         playerIndex: humanIndex,
         timeControl,
         lang,

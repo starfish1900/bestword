@@ -1041,6 +1041,12 @@
       <option value="chosenword">ChosenWord</option>
     </select>
     <button class="btn btn-primary" id="createRequestBtn">Create Game</button>
+    <select class="tc-select" id="aiDifficultySelect">
+      <option value="easy">Easy</option>
+      <option value="medium">Medium</option>
+      <option value="hard" selected>Hard</option>
+      <option value="expert">Expert</option>
+    </select>
     <button class="btn btn-secondary" id="playAIBtn" style="border-color:var(--accent);">&#x1F916; vs AI</button>
     <button class="btn btn-danger" id="cancelRequestBtn" style="display:none;">Cancel</button>
   </div>
@@ -2860,7 +2866,8 @@ $id('playAIBtn').addEventListener('click', () => {
   const lang = $id('langSelect').value || 'en';
   const bridgeScoring = $id('bridgeSelect').value === 'yes';
   const variant = $id('variantSelect').value || 'bestword';
-  socket.emit('playAI', { minutes, lang, bridgeScoring, variant });
+  const difficulty = $id('aiDifficultySelect').value || 'hard';
+  socket.emit('playAI', { minutes, lang, bridgeScoring, variant, difficulty });
 });
 
 drawBtn.addEventListener('click', () => { socket.emit('draw'); });
