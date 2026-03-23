@@ -82,7 +82,39 @@ for (const [lang, filePath] of Object.entries(gaddagFiles)) {
   }
 }
 
+// Load restricted-vocabulary GADDAGs for AI difficulty levels
+const aiGaddags = {};
+const aiGaddagFiles = {
+  enEasy: path.join(__dirname, 'enEasy.gaddag'),
+  enMedium: path.join(__dirname, 'enMedium.gaddag'),
+  frEasy: path.join(__dirname, 'frEasy.gaddag'),
+  frMedium: path.join(__dirname, 'frMedium.gaddag'),
+  esEasy: path.join(__dirname, 'esEasy.gaddag'),
+  esMedium: path.join(__dirname, 'esMedium.gaddag')
+};
+
+for (const [key, filePath] of Object.entries(aiGaddagFiles)) {
+  if (fs.existsSync(filePath)) {
+    console.log(`Loading ${key} GADDAG...`);
+    aiGaddags[key] = GADDAG.load(filePath);
+  } else {
+    console.warn(`AI GADDAG file not found: ${filePath}`);
+  }
+}
+
 function getGaddag(lang) { return gaddags[lang] || gaddags.en || null; }
+
+// Get the appropriate GADDAG for AI based on language and difficulty
+function getAIGaddag(lang, difficulty) {
+  if (difficulty === 'easy') {
+    return aiGaddags[lang + 'Easy'] || gaddags[lang] || gaddags.en || null;
+  }
+  if (difficulty === 'medium') {
+    return aiGaddags[lang + 'Medium'] || gaddags[lang] || gaddags.en || null;
+  }
+  // hard, expert: use full GADDAG
+  return gaddags[lang] || gaddags.en || null;
+}
 
 // ─── State ─────────────────────────────────────────────────────────────────────
 const games = new Map();          // gameId -> game state
@@ -125,16 +157,16 @@ function scheduleAITurn(gameId) {
     if (!g || g.phase === 'finished') return;
     if (game.getCurrentPlayer(g) !== AI_TOKEN) return;
 
-    const gaddag = getGaddag(g.lang);
+    const aiGaddag = getAIGaddag(g.lang, g.aiDifficulty || 'hard');
     const dawg = getDawg(g.lang);
 
-    if (!gaddag) {
-      console.error('AI: GADDAG not available for', g.lang);
+    if (!aiGaddag) {
+      console.error('AI: GADDAG not available for', g.lang, g.aiDifficulty);
       return;
     }
 
     try {
-      const result = await executeAITurn(g, gameId, gaddag, dawg);
+      const result = await executeAITurn(g, gameId, aiGaddag, dawg);
       console.log(`AI [${gameId}]: ${result.action || 'error'}${result.word ? ' ' + result.word : ''}${result.score ? ' (' + result.score + ')' : ''}${result.error ? ' — ' + result.error : ''}`);
     } catch (err) {
       console.error('AI turn error:', err);

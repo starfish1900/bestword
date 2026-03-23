@@ -12,30 +12,20 @@ const game = require('./game');
 const AI_TOKEN = 'AI_PLAYER';
 const AI_NAME = 'BestWord AI';
 
-// ─── Difficulty: how the AI picks from ranked moves ──────────────────────────
-// Easy:   random from top 20
-// Medium: random from top 5
-// Hard:   always top move
-// Expert: always top move + higher NO WORDS threshold (pickier, waits for better)
+// ─── Difficulty levels ───────────────────────────────────────────────────────
+// Easy:   restricted vocabulary (10K words), always best move from that set
+// Medium: restricted vocabulary (40K words), always best move from that set
+// Hard:   full vocabulary, always best move
+// Expert: full vocabulary, always best move + higher NO WORDS threshold
 const DIFFICULTY_CONFIG = {
-  easy:   { pickRange: 20, thresholdMult: 0.3, label: 'Easy' },
-  medium: { pickRange: 5,  thresholdMult: 0.6, label: 'Medium' },
-  hard:   { pickRange: 1,  thresholdMult: 1.0, label: 'Hard' },
-  expert: { pickRange: 1,  thresholdMult: 1.2, label: 'Expert' }
+  easy:   { thresholdMult: 0.3, label: 'Easy' },
+  medium: { thresholdMult: 0.6, label: 'Medium' },
+  hard:   { thresholdMult: 1.0, label: 'Hard' },
+  expert: { thresholdMult: 1.2, label: 'Expert' }
 };
 
 function getDifficultyConfig(difficulty) {
   return DIFFICULTY_CONFIG[difficulty] || DIFFICULTY_CONFIG.hard;
-}
-
-// Pick a move from the ranked list based on difficulty
-function pickMove(moves, difficulty) {
-  if (moves.length === 0) return null;
-  const cfg = getDifficultyConfig(difficulty);
-  const range = Math.min(cfg.pickRange, moves.length);
-  if (range === 1) return moves[0];
-  const idx = Math.floor(Math.random() * range);
-  return moves[idx];
 }
 
 // ─── Adaptive NO WORDS threshold ─────────────────────────────────────────────
@@ -182,11 +172,8 @@ function chooseBestConsonants(g, aiToken, gaddag, dawg, difficulty) {
     return available.slice(0, toChoose);
   }
 
-  // Pick based on difficulty
-  const diffCfg = getDifficultyConfig(difficulty);
-  const range = Math.min(diffCfg.pickRange, candidates.length);
-  const idx = range === 1 ? 0 : Math.floor(Math.random() * range);
-  return candidates[idx].pair;
+  // Always pick the best pair — vocabulary restriction handles difficulty
+  return candidates[0].pair;
 }
 
 // ─── AI Turn Execution ───────────────────────────────────────────────────────
@@ -221,20 +208,20 @@ async function executeAITurn(g, gameId, gaddag, dawg) {
     const result = generateMoves(g.board, player.rack, g.bag, gaddag, dawg, g.lang, g.bridgeScoring, null, 10000);
 
     const threshold = getNoWordsThreshold(g, aiToken, difficulty);
-    const selectedMove = pickMove(result.moves, difficulty);
+    const bestMove = result.moves.length > 0 ? result.moves[0] : null;
     const opponent = game.getOpponent(g, aiToken);
     const opponentPassed = opponent ? g.players[opponent].passed : false;
 
-    if (selectedMove && selectedMove.totalScore >= threshold) {
+    if (bestMove && bestMove.totalScore >= threshold) {
       const placeResult = game.performPlaceWord(
         g, aiToken,
-        selectedMove.startRow, selectedMove.startCol,
-        selectedMove.direction, selectedMove.word,
+        bestMove.startRow, bestMove.startCol,
+        bestMove.direction, bestMove.word,
         dawg
       );
       if (placeResult.error) {
         // Try alternatives from top of list
-        for (let i = 0; i < Math.min(20, result.moves.length); i++) {
+        for (let i = 1; i < Math.min(20, result.moves.length); i++) {
           const alt = result.moves[i];
           const altResult = game.performPlaceWord(g, aiToken, alt.startRow, alt.startCol, alt.direction, alt.word, dawg);
           if (!altResult.error) {
@@ -242,14 +229,13 @@ async function executeAITurn(g, gameId, gaddag, dawg) {
           }
         }
       } else {
-        return { action: 'PLACE', word: selectedMove.word, score: selectedMove.totalScore };
+        return { action: 'PLACE', word: bestMove.word, score: bestMove.totalScore };
       }
     }
 
     // Below threshold or no moves
     if (!opponentPassed && g.drewCount > 0) {
       // Consider playing anyway in late game
-      const bestMove = result.moves.length > 0 ? result.moves[0] : null;
       if (bestMove && bestMove.totalScore > 0) {
         const bagTotal = Object.values(g.bag).reduce((a, b) => a + b, 0);
         if (bagTotal < 30) {
@@ -271,7 +257,6 @@ async function executeAITurn(g, gameId, gaddag, dawg) {
     }
 
     // Must play or pass
-    const bestMove = result.moves.length > 0 ? result.moves[0] : null;
     if (bestMove) {
       const placeResult = game.performPlaceWord(
         g, aiToken,
@@ -302,6 +287,5 @@ module.exports = {
   executeAITurn,
   chooseBestConsonants,
   getNoWordsThreshold,
-  pickMove,
   getDifficultyConfig
 };
