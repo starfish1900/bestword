@@ -789,7 +789,7 @@ io.on('connection', (socket) => {
     try {
       const result = generateMoves(
         g.board, player.rack, g.bag, gaddag, dawg,
-        g.lang, g.bridgeScoring, wordHistorySet
+        g.lang, g.bridgeScoring, wordHistorySet, 20000
       );
       socket.emit('movesGenerated', {
         moves: result.moves.slice(0, 200), // cap at top 200

@@ -120,11 +120,12 @@ function computeSecondaries(board, newTiles, dir, lang, bridgeScoring) {
 
 // ─── Main move generator ─────────────────────────────────────────────────────
 
-function generateMoves(board, rack, bag, gaddag, dawg, lang, bridgeScoring, wordHistory) {
+function generateMoves(board, rack, bag, gaddag, dawg, lang, bridgeScoring, wordHistory, maxRawMoves) {
   const t0 = Date.now();
   const cfg = getLangConfig(lang);
   const crossChecks = computeCrossChecks(board, dawg);
   const anchors = findAnchors(board);
+  const rawLimit = maxRawMoves || 50000; // default cap to prevent OOM
 
   // Build rack count map
   const rackMap = {};
@@ -187,6 +188,7 @@ function generateMoves(board, rack, bag, gaddag, dawg, lang, bridgeScoring, word
     }
 
     function recordMove(fixed, startPos, wordChars, newTilePositions) {
+      if (rawMoves.length >= rawLimit) return;
       const word = wordChars.join('');
       if (word.length < 3 || word.length > 15 || newTilePositions.length < 2) return;
       const endPos = startPos + word.length;
@@ -223,6 +225,7 @@ function generateMoves(board, rack, bag, gaddag, dawg, lang, bridgeScoring, word
     // ─── GADDAG traversal ───────────────────────────────────────────────────
 
     function extendRight(fixed, pos, nodeIdx, wordChars, newTiles, anchorPos) {
+      if (rawMoves.length >= rawLimit) return;
       // Current node might be terminal → record word
       // (terminal flag was checked by caller via the arc leading here)
       // We check at the START of extendRight: if we were told this is terminal
@@ -263,6 +266,7 @@ function generateMoves(board, rack, bag, gaddag, dawg, lang, bridgeScoring, word
     }
 
     function extendLeft(fixed, pos, nodeIdx, wordLeft, newTiles, anchorPos) {
+      if (rawMoves.length >= rawLimit) return;
       // Check separator → switch to going right
       const sepResult = gaddag.getChild(nodeIdx, SEP);
       if (sepResult) {
@@ -322,12 +326,14 @@ function generateMoves(board, rack, bag, gaddag, dawg, lang, bridgeScoring, word
     // ─── Generate from each anchor ───────────────────────────────────────────
 
     for (const anchor of anchors) {
+      if (rawMoves.length >= rawLimit) break;
       const fixed = dir === 'H' ? anchor.r : anchor.c;
       const anchorPos = dir === 'H' ? anchor.c : anchor.r;
 
       // The anchor cell must be empty (guaranteed by findAnchors)
       // Try each letter at the anchor position
       gaddag.forEachChild(gaddag.rootIndex, (letter, childIdx, terminal) => {
+        if (rawMoves.length >= rawLimit) return;
         if (letter === SEP) return;
         if (!tryPlace(anchorPos, fixed, letter)) return;
 

@@ -80,8 +80,8 @@ function chooseBestConsonants(g, aiToken, gaddag, dawg, wordHistory) {
     }
   }
 
-  // Generate all possible moves with super-rack
-  const result = generateMoves(g.board, superRack, g.bag, gaddag, dawg, g.lang, g.bridgeScoring, wordHistory);
+  // Generate all possible moves with super-rack (capped for memory)
+  const result = generateMoves(g.board, superRack, g.bag, gaddag, dawg, g.lang, g.bridgeScoring, wordHistory, 5000);
 
   if (result.moves.length === 0) {
     // No moves possible with any consonants — pick any two available
@@ -225,7 +225,7 @@ async function executeAITurn(g, gameId, gaddag, dawg, WordHistory, Player) {
     }
 
     // Generate moves
-    const result = generateMoves(g.board, player.rack, g.bag, gaddag, dawg, g.lang, g.bridgeScoring, wordHistory);
+    const result = generateMoves(g.board, player.rack, g.bag, gaddag, dawg, g.lang, g.bridgeScoring, wordHistory, 10000);
 
     const threshold = getNoWordsThreshold(g, aiToken);
     const bestMove = result.moves.length > 0 ? result.moves[0] : null;
