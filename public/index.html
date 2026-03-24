@@ -526,6 +526,47 @@
     background: rgba(232, 169, 70, 0.08);
   }
 
+  /* Spectator banner */
+  .spectator-banner {
+    display: none;
+    border: 1px solid #5b8def;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+    color: #5b8def;
+    text-align: center;
+    background: rgba(91, 141, 239, 0.08);
+    font-weight: 600;
+  }
+
+  /* Live games in lobby */
+  .live-game-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: var(--bg3);
+    border-radius: 8px;
+    margin-bottom: 6px;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .live-game-players {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .live-game-score {
+    font-family: 'DM Serif Display', serif;
+    font-size: 15px;
+    color: var(--accent);
+  }
+  .live-game-tags {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+
   /* Word History Modal */
   .wh-overlay {
     position: fixed;
@@ -1057,6 +1098,10 @@
     <h3>Open Games</h3>
     <div id="lobbyItems"></div>
   </div>
+  <div class="lobby-list" id="liveGamesList">
+    <h3>&#x1F441; Live Games</h3>
+    <div id="liveGamesItems"></div>
+  </div>
   <button class="btn btn-secondary" id="wordHistoryBtn" style="font-size:13px; padding:10px 24px;">&#x1F4D6; Word History (ChosenWord)</button>
 
   <!-- Word History Modal -->
@@ -1183,6 +1228,11 @@
     </div>
 
     <div class="variant-indicator" id="variantIndicator"></div>
+
+    <div class="spectator-banner" id="spectatorBanner" style="display:none;">
+      &#x1F441; Spectating
+      <button class="btn btn-secondary" id="stopSpectateBtn" style="padding:4px 12px; font-size:11px; margin-left:8px;">Leave</button>
+    </div>
 
     <div class="panel">
       <div class="panel-title" id="panelStatus">Status</div>
@@ -1549,6 +1599,7 @@ let authToken = localStorage.getItem('bestword_jwt'); // JWT token
 let playerToken = localStorage.getItem('bestword_token'); // permanent game token
 let playerName = localStorage.getItem('bestword_name') || '';
 let myRequestActive = false;
+let isSpectating = false;
 
 // Game state
 let gs = null; // current game state from server
@@ -1795,6 +1846,16 @@ function renderStatus() {
   const el = $id('statusText');
   el.className = 'status-text';
 
+  if (isSpectating) {
+    if (gs.phase === 'finished') {
+      el.textContent = t('game_over');
+    } else {
+      const turnName = gs.currentTurnIndex === 0 ? gs.myName : gs.opponentName;
+      el.textContent = (turnName || 'Player') + "'s turn";
+    }
+    return;
+  }
+
   if (gs.phase === 'finished') {
     el.textContent = t('game_over');
   } else if (!gs.isMyTurn) {
@@ -1819,6 +1880,15 @@ function renderStatus() {
 // ─── Render Actions ────────────────────────────────────────────────────────────
 function renderActions() {
   if (!gs) return;
+
+  // Hide entire actions panel for spectators
+  const actionsPanel = $id('actionsPanel').parentElement;
+  if (isSpectating) {
+    actionsPanel.style.display = 'none';
+    return;
+  }
+  actionsPanel.style.display = '';
+
   const isMyTurn = gs.isMyTurn;
   const phase = gs.phase;
   const isChosenWord = gs.variant === 'chosenword';
@@ -2086,17 +2156,23 @@ function renderAll() {
   // Show/hide Ç virtual key based on game language
   const cedillaKey = document.querySelector('.vkb-cedilla');
   if (cedillaKey) {
-    cedillaKey.style.display = (gs && gs.lang === 'fr') ? '' : 'none';
+    cedillaKey.style.display = (gs && gs.lang === 'fr' && !isSpectating) ? '' : 'none';
   }
   // Show/hide Ñ virtual key based on game language
   const tildeKey = document.querySelector('.vkb-tilde');
   if (tildeKey) {
-    tildeKey.style.display = (gs && gs.lang === 'es') ? '' : 'none';
+    tildeKey.style.display = (gs && gs.lang === 'es' && !isSpectating) ? '' : 'none';
+  }
+  // Hide entire virtual keyboard for spectators
+  const vkb = $id('virtualKeyboard');
+  if (vkb) {
+    vkb.style.display = isSpectating ? 'none' : '';
   }
 }
 
 // ─── Cell Click ────────────────────────────────────────────────────────────────
 function onCellClick(r, c) {
+  if (isSpectating) return;
   if (!gs || !gs.isMyTurn || gs.phase !== 'action') return;
   if (gs.board[r][c] !== null) return; // occupied by permanent tile
 
@@ -2467,6 +2543,71 @@ function connectSocket() {
     renderAll();
     showGameOver(data);
   });
+
+  // ─── Spectator events ───────────────────────────────────────────────────
+  socket.on('liveGames', (list) => {
+    renderLiveGames(list);
+  });
+
+  socket.on('spectatorState', (data) => {
+    if (!isSpectating) return;
+    gs = data;
+    gs.isMyTurn = false; // spectators can't act
+    gs.phase = data.phase;
+    // Map spectator fields to what renderAll expects
+    gs.myRack = data.p1Rack || [];
+    gs.myScore = data.p1Score;
+    gs.opponentScore = data.p2Score;
+    gs.opponentRackSize = data.p2RackSize;
+    gs.opponentRack = data.p2Rack;
+    gs.myName = data.p1Name;
+    gs.opponentName = data.p2Name;
+    gs.myTime = data.p1Time;
+    gs.oppTime = data.p2Time;
+    gs.drawDone = true; // hide draw button for spectators
+    gs.drewCount = 0;
+    gs.myPassed = false;
+    gs.opponentPassed = false;
+    gs.playerIndex = 0;
+    renderAll();
+    $id('spectatorBanner').style.display = '';
+  });
+
+  socket.on('spectatorWordPlaced', (data) => {
+    if (!isSpectating) return;
+    showToast(`${data.playerName} played ${data.principalWord} for +${data.score}`, '');
+  });
+
+  socket.on('spectatorGameOver', (data) => {
+    if (!isSpectating) return;
+    gs = data;
+    gs.isMyTurn = false;
+    gs.myRack = data.p1Rack || [];
+    gs.myScore = data.p1Score;
+    gs.opponentScore = data.p2Score;
+    gs.myName = data.p1Name;
+    gs.opponentName = data.p2Name;
+    gs.myTime = data.p1Time;
+    gs.oppTime = data.p2Time;
+    gs.playerIndex = 0;
+    stopClockInterval();
+    renderAll();
+    // Show game over inline
+    const reason = data.result ? data.result.reason : 'score';
+    const winnerName = data.result && data.result.winner ?
+      (data.result.winner === data.p1Name ? data.p1Name : data.p2Name) : null;
+    const overText = winnerName ? `${winnerName} wins! (${reason})` : `Draw! (${reason})`;
+    showToast(overText, 'success');
+  });
+
+  socket.on('spectateEnded', (data) => {
+    if (!isSpectating) return;
+    isSpectating = false;
+    gs = null;
+    $id('spectatorBanner').style.display = 'none';
+    showToast(data.reason || 'Spectation ended', '');
+    showScreen(lobbyScreen);
+  });
 }
 
 // ─── Lobby Render ──────────────────────────────────────────────────────────────
@@ -2553,6 +2694,90 @@ function renderLobby(list) {
   }
 }
 
+// ─── Live Games Render ────────────────────────────────────────────────────────
+function renderLiveGames(list) {
+  const el = $id('liveGamesItems');
+  el.innerHTML = '';
+  if (!list || list.length === 0) {
+    el.innerHTML = '<div class="lobby-empty">No live games to watch</div>';
+    return;
+  }
+  for (const g of list) {
+    const item = document.createElement('div');
+    item.className = 'live-game-item';
+
+    const players = document.createElement('span');
+    players.className = 'live-game-players';
+    players.textContent = `${g.p1Name} vs ${g.p2Name}`;
+    item.appendChild(players);
+
+    const score = document.createElement('span');
+    score.className = 'live-game-score';
+    score.textContent = `${g.p1Score} - ${g.p2Score}`;
+    item.appendChild(score);
+
+    const tags = document.createElement('div');
+    tags.className = 'live-game-tags';
+
+    const langTag = document.createElement('span');
+    langTag.className = 'lobby-item-tc';
+    langTag.textContent = g.lang.toUpperCase();
+    tags.appendChild(langTag);
+
+    if (g.variant === 'chosenword') {
+      const cwTag = document.createElement('span');
+      cwTag.className = 'lobby-item-tc';
+      cwTag.style.color = 'var(--accent)';
+      cwTag.style.background = 'rgba(232, 169, 70, 0.12)';
+      cwTag.textContent = 'CW';
+      tags.appendChild(cwTag);
+    }
+
+    if (g.bridgeScoring) {
+      const bTag = document.createElement('span');
+      bTag.className = 'lobby-item-tc';
+      bTag.style.color = 'var(--green)';
+      bTag.style.background = 'rgba(76, 175, 125, 0.12)';
+      bTag.textContent = '\u{1F309}';
+      tags.appendChild(bTag);
+    }
+
+    if (g.isAIGame) {
+      const aiTag = document.createElement('span');
+      aiTag.className = 'lobby-item-tc';
+      aiTag.textContent = '\u{1F916}';
+      tags.appendChild(aiTag);
+    }
+
+    if (g.spectators > 0) {
+      const specTag = document.createElement('span');
+      specTag.className = 'lobby-item-tc';
+      specTag.style.color = '#5b8def';
+      specTag.textContent = '\u{1F441} ' + g.spectators;
+      tags.appendChild(specTag);
+    }
+
+    item.appendChild(tags);
+
+    const watchBtn = document.createElement('button');
+    watchBtn.className = 'btn btn-secondary';
+    watchBtn.style.padding = '5px 14px';
+    watchBtn.style.fontSize = '12px';
+    watchBtn.style.borderColor = '#5b8def';
+    watchBtn.style.color = '#5b8def';
+    watchBtn.textContent = '\u{1F441} Watch';
+    watchBtn.addEventListener('click', () => {
+      isSpectating = true;
+      socket.emit('spectateGame', { gameId: g.gameId });
+      buildBoard();
+      showScreen(gameScreen);
+    });
+    item.appendChild(watchBtn);
+
+    el.appendChild(item);
+  }
+}
+
 // ─── Game Over ─────────────────────────────────────────────────────────────────
 function showGameOver(data) {
   let title, color;
@@ -2587,16 +2812,22 @@ function showGameOver(data) {
 }
 
 function returnToLobby() {
+  if (isSpectating) {
+    socket.emit('stopSpectating');
+    isSpectating = false;
+  }
   gs = null;
   opponentName = '';
   myRequestActive = false;
   stopClockInterval();
   gameOverBanner.classList.remove('show');
   disconnectBanner.classList.remove('show');
+  $id('spectatorBanner').style.display = 'none';
   createRequestBtn.style.display = '';
   cancelRequestBtn.style.display = 'none';
   myRequestBanner.style.display = 'none';
   showScreen(authToken ? lobbyScreen : authScreen);
+  socket.emit('getLiveGames');
 }
 
 // ─── Auth Handlers ────────────────────────────────────────────────────────────
@@ -2657,6 +2888,7 @@ $id('loginBtn').addEventListener('click', async () => {
     $id('logoutBtn').style.display = '';
     socket.emit('register', { token: playerToken, name: playerName });
     showScreen(lobbyScreen);
+    socket.emit('getLiveGames');
   } catch (err) {
     showAuthError('Network error. Please try again.');
   } finally {
@@ -2840,6 +3072,15 @@ $id('mvOverlay').addEventListener('click', (e) => {
   if (e.target === $id('mvOverlay')) $id('mvOverlay').style.display = 'none';
 });
 
+// ─── Stop Spectating ──────────────────────────────────────────────────────────
+$id('stopSpectateBtn').addEventListener('click', () => {
+  socket.emit('stopSpectating');
+  isSpectating = false;
+  gs = null;
+  $id('spectatorBanner').style.display = 'none';
+  showScreen(lobbyScreen);
+});
+
 // ─── Game Button Handlers ─────────────────────────────────────────────────────
 createRequestBtn.addEventListener('click', () => {
   const minutes = parseInt($id('tcSelect').value) || 15;
@@ -2924,6 +3165,7 @@ socket.on('connect', async () => {
       // Only switch to lobby if we're on the auth screen (not in a game)
       if (authScreen.classList.contains('active')) {
         showScreen(lobbyScreen);
+        socket.emit('getLiveGames');
       }
     }
   }

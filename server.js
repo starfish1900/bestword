@@ -123,6 +123,8 @@ const playerSockets = new Map();  // playerToken -> socket
 const socketPlayers = new Map();  // socket.id -> playerToken
 const playerGames = new Map();    // playerToken -> gameId (active game)
 const playerNames = new Map();    // playerToken -> display name
+const gameSpectators = new Map(); // gameId -> Set of socket objects
+const socketSpectating = new Map(); // socket.id -> gameId
 
 const DISCONNECT_TIMEOUT = 25000;
 
@@ -134,6 +136,64 @@ function emitToPlayer(playerToken, event, data) {
   }
 }
 
+// Get a spectator-safe game state (hides racks in BestWord)
+function getSpectatorState(gameObj) {
+  const p1Token = gameObj.playerOrder[0];
+  const p2Token = gameObj.playerOrder[1];
+  const currentPlayer = game.getCurrentPlayer(gameObj);
+  const isChosenWord = gameObj.variant === 'chosenword';
+
+  const elapsed = (gameObj.turnStartedAt && gameObj.phase !== 'finished' && gameObj.phase !== 'waiting')
+    ? Date.now() - gameObj.turnStartedAt : 0;
+  const p1Time = gameObj.players[p1Token] ? gameObj.players[p1Token].timeRemaining : 0;
+  const p2Time = p2Token && gameObj.players[p2Token] ? gameObj.players[p2Token].timeRemaining : 0;
+
+  return {
+    id: gameObj.id,
+    board: gameObj.board,
+    phase: gameObj.phase,
+    // Spectators see racks only in ChosenWord (perfect information)
+    p1Rack: isChosenWord ? gameObj.players[p1Token].rack : null,
+    p2Rack: (isChosenWord && p2Token && gameObj.players[p2Token]) ? gameObj.players[p2Token].rack : null,
+    p1RackSize: gameObj.players[p1Token] ? gameObj.players[p1Token].rack.length : 0,
+    p2RackSize: (p2Token && gameObj.players[p2Token]) ? gameObj.players[p2Token].rack.length : 0,
+    p1Score: gameObj.players[p1Token] ? gameObj.players[p1Token].score : 0,
+    p2Score: (p2Token && gameObj.players[p2Token]) ? gameObj.players[p2Token].score : 0,
+    p1Name: gameObj.players[p1Token] ? gameObj.players[p1Token].name : '',
+    p2Name: (p2Token && gameObj.players[p2Token]) ? gameObj.players[p2Token].name : '',
+    currentTurnIndex: gameObj.currentTurnIndex,
+    p1Time: currentPlayer === p1Token ? Math.max(0, p1Time - elapsed) : p1Time,
+    p2Time: currentPlayer === p2Token ? Math.max(0, p2Time - elapsed) : p2Time,
+    timeControl: gameObj.timeControl,
+    serverTime: Date.now(),
+    lang: gameObj.lang,
+    variant: gameObj.variant,
+    bridgeScoring: gameObj.bridgeScoring,
+    letterValues: game.getLangConfig(gameObj.lang).letterValues,
+    isAIGame: !!gameObj.isAIGame,
+    moveHistory: gameObj.moveHistory.map(m => ({
+      action: m.action,
+      playerIndex: gameObj.playerOrder.indexOf(m.player),
+      word: m.word,
+      secondaryWords: m.secondaryWords,
+      score: m.score,
+      startRow: m.startRow,
+      startCol: m.startCol,
+      direction: m.direction
+    })),
+    bag: { ...gameObj.bag },
+    bagTotal: Object.values(gameObj.bag).reduce((a, b) => a + b, 0)
+  };
+}
+
+function sendToSpectators(gameId, event, data) {
+  const specs = gameSpectators.get(gameId);
+  if (!specs) return;
+  for (const sock of specs) {
+    if (sock.connected) sock.emit(event, data);
+  }
+}
+
 function broadcastLobby() {
   const list = [];
   for (const [reqId, req] of lobby) {
@@ -142,10 +202,40 @@ function broadcastLobby() {
   io.emit('lobbyUpdate', list);
 }
 
+// Broadcast live games list to all connected sockets
+function broadcastLiveGames() {
+  const liveList = [];
+  for (const [gameId, g] of games) {
+    if (g.phase === 'finished' || g.phase === 'waiting') continue;
+    const p1 = g.playerOrder[0];
+    const p2 = g.playerOrder[1];
+    const spectatorCount = gameSpectators.has(gameId) ? gameSpectators.get(gameId).size : 0;
+    liveList.push({
+      gameId,
+      p1Name: g.players[p1] ? g.players[p1].name : '?',
+      p2Name: (p2 && g.players[p2]) ? g.players[p2].name : '?',
+      p1Score: g.players[p1] ? g.players[p1].score : 0,
+      p2Score: (p2 && g.players[p2]) ? g.players[p2].score : 0,
+      lang: g.lang,
+      variant: g.variant,
+      bridgeScoring: g.bridgeScoring,
+      isAIGame: !!g.isAIGame,
+      spectators: spectatorCount
+    });
+  }
+  io.emit('liveGames', liveList);
+}
+
 function sendGameState(gameObj) {
   for (const token of gameObj.playerOrder) {
     emitToPlayer(token, 'gameState', game.getGameState(gameObj, token));
   }
+  // Also send to spectators
+  const gameId = gameObj.id;
+  if (gameSpectators.has(gameId) && gameSpectators.get(gameId).size > 0) {
+    sendToSpectators(gameId, 'spectatorState', getSpectatorState(gameObj));
+  }
+  broadcastLiveGames();
 }
 
 // ─── AI Turn Scheduling ───────────────────────────────────────────────────────
@@ -185,6 +275,10 @@ function scheduleAITurn(gameId) {
         };
         emitToPlayer(token, 'gameOver', state);
       }
+      // Notify spectators
+      const aiSpecState = getSpectatorState(g);
+      aiSpecState.result = { winner: gameResult.winner, reason: gameResult.reason };
+      sendToSpectators(gameId, 'spectatorGameOver', aiSpecState);
       saveGameRecord(g, gameResult).catch(err => console.error('Failed to save AI game record:', err.message));
       setTimeout(() => cleanupGame(gameId), 5000);
       return;
@@ -207,6 +301,13 @@ function scheduleAITurn(gameId) {
             playedBy: 'opponent'
           });
         }
+        // Notify spectators
+        sendToSpectators(gameId, 'spectatorWordPlaced', {
+          playerName: AI_NAME,
+          principalWord: lastMove.word,
+          secondaryWords: lastMove.secondaryWords || [],
+          score: lastMove.score
+        });
       }
     }
 
@@ -238,7 +339,17 @@ function cleanupGame(gameId) {
       playerGames.delete(token);
     }
   }
+  // Notify and clean up spectators
+  const specs = gameSpectators.get(gameId);
+  if (specs) {
+    for (const sock of specs) {
+      if (sock.connected) sock.emit('spectateEnded', { reason: 'Game ended' });
+      socketSpectating.delete(sock.id);
+    }
+    gameSpectators.delete(gameId);
+  }
   games.delete(gameId);
+  broadcastLiveGames();
 }
 
 // ─── Save game record to MongoDB ─────────────────────────────────────────────
@@ -385,6 +496,10 @@ function finishGameByDisconnect(gameId, disconnectedToken) {
     };
     emitToPlayer(token, 'gameOver', state);
   }
+  // Notify spectators
+  const specState = getSpectatorState(g);
+  specState.result = { winner: opponent, reason: 'disconnect' };
+  sendToSpectators(gameId, 'spectatorGameOver', specState);
 
   // Cleanup after a short delay
   const disconnectResult = { winner: opponent, loser: disconnectedToken, reason: 'disconnect' };
@@ -410,6 +525,10 @@ function finishGameByTimeout(gameId, timedOutToken) {
     };
     emitToPlayer(token, 'gameOver', state);
   }
+  // Notify spectators
+  const specStateT = getSpectatorState(g);
+  specStateT.result = { winner: opponent, reason: 'timeout' };
+  sendToSpectators(gameId, 'spectatorGameOver', specStateT);
 
   const timeoutResult = { winner: opponent, loser: timedOutToken, reason: 'timeout' };
   saveGameRecord(g, timeoutResult).catch(err => console.error('Failed to save game record:', err.message));
@@ -668,6 +787,10 @@ io.on('connection', (socket) => {
         };
         emitToPlayer(token, 'gameOver', state);
       }
+      // Notify spectators
+      const specState = getSpectatorState(g);
+      specState.result = { winner: gameResult.winner, reason: gameResult.reason };
+      sendToSpectators(gameId, 'spectatorGameOver', specState);
       // Save game record and word history asynchronously
       saveGameRecord(g, gameResult).catch(err => console.error('Failed to save game record:', err.message));
       setTimeout(() => cleanupGame(gameId), 5000);
@@ -779,6 +902,14 @@ io.on('connection', (socket) => {
         playedBy: token === playerToken ? 'you' : 'opponent'
       });
     }
+    // Notify spectators
+    const placerName = g.players[playerToken] ? g.players[playerToken].name : '?';
+    sendToSpectators(gameId, 'spectatorWordPlaced', {
+      playerName: placerName,
+      principalWord: result.principalWord,
+      secondaryWords: result.secondaryWords,
+      score: result.score
+    });
 
     if (!checkFinishedAndNotify(gameId, g)) sendStateAndMaybeAI(g, gameId);
   });
@@ -855,8 +986,57 @@ io.on('connection', (socket) => {
     }
   });
 
+  // ─── Spectating ──────────────────────────────────────────────────────────
+  socket.on('spectateGame', (data) => {
+    const gameId = data && data.gameId;
+    if (!gameId) return;
+    const g = games.get(gameId);
+    if (!g || g.phase === 'finished') {
+      socket.emit('spectateEnded', { reason: 'Game not found or already ended' });
+      return;
+    }
+
+    // Leave any existing spectation
+    const prevGameId = socketSpectating.get(socket.id);
+    if (prevGameId) {
+      const prevSpecs = gameSpectators.get(prevGameId);
+      if (prevSpecs) prevSpecs.delete(socket);
+    }
+
+    // Join as spectator
+    if (!gameSpectators.has(gameId)) gameSpectators.set(gameId, new Set());
+    gameSpectators.get(gameId).add(socket);
+    socketSpectating.set(socket.id, gameId);
+
+    // Send current state
+    socket.emit('spectatorState', getSpectatorState(g));
+    broadcastLiveGames();
+  });
+
+  socket.on('stopSpectating', () => {
+    const gameId = socketSpectating.get(socket.id);
+    if (gameId) {
+      const specs = gameSpectators.get(gameId);
+      if (specs) specs.delete(socket);
+      socketSpectating.delete(socket.id);
+      broadcastLiveGames();
+    }
+  });
+
+  socket.on('getLiveGames', () => {
+    broadcastLiveGames();
+  });
+
   // ─── Disconnect ──────────────────────────────────────────────────────────
   socket.on('disconnect', () => {
+    // Clean up spectator state
+    const specGameId = socketSpectating.get(socket.id);
+    if (specGameId) {
+      const specs = gameSpectators.get(specGameId);
+      if (specs) specs.delete(socket);
+      socketSpectating.delete(socket.id);
+    }
+
     if (!playerToken) return;
 
     const currentSocket = playerSockets.get(playerToken);
@@ -923,6 +1103,28 @@ setInterval(() => {
   }
   if (changed) broadcastLobby();
 }, 30000);
+
+// ─── Zombie game cleanup (both players disconnected for >60s) ────────────────
+setInterval(() => {
+  const now = Date.now();
+  for (const [gameId, g] of games) {
+    if (g.phase === 'finished') continue;
+    // Check if all human players are disconnected
+    let allDisconnected = true;
+    for (const token of g.playerOrder) {
+      if (token === AI_TOKEN) continue; // AI is never "disconnected"
+      const p = g.players[token];
+      if (p && p.connected) { allDisconnected = false; break; }
+    }
+    if (!allDisconnected) continue;
+    // Check if game has been abandoned (created > 60s ago with no connected players)
+    if (now - (g.lastActivityAt || g.createdAt) > 60000) {
+      console.log(`Cleaning up zombie game: ${gameId}`);
+      g.phase = 'finished';
+      cleanupGame(gameId);
+    }
+  }
+}, 15000);
 
 // ─── Start ─────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
