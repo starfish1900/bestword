@@ -1800,8 +1800,17 @@ function renderHistory() {
   for (let i = 0; i < gs.moveHistory.length; i++) {
     const m = gs.moveHistory[i];
     const div = document.createElement('div');
-    div.className = 'history-move' + (m.isMe ? ' mine' : '');
-    const who = m.isMe ? t('you') : t('opp');
+
+    let who;
+    if (isSpectating) {
+      // Use playerIndex to determine name
+      const name = m.playerIndex === 0 ? gs.myName : gs.opponentName;
+      who = (name || ('P' + (m.playerIndex + 1))).substring(0, 8);
+      div.className = 'history-move';
+    } else {
+      who = m.isMe ? t('you') : t('opp');
+      div.className = 'history-move' + (m.isMe ? ' mine' : '');
+    }
     if (m.action === 'PASS') {
       div.textContent = `${i + 1}. ${who}: ${t('hist_pass')}`;
     } else if (m.action === 'NO_WORDS') {
@@ -1833,11 +1842,19 @@ function renderScores() {
   if (!gs) return;
   $id('myScoreVal').textContent = gs.myScore;
   $id('oppScoreVal').textContent = gs.opponentScore;
-  $id('myScoreName').textContent = playerName || 'You';
-  $id('oppScoreName').textContent = opponentName || 'Opponent';
 
-  $id('myScoreBox').classList.toggle('active-turn', gs.isMyTurn);
-  $id('oppScoreBox').classList.toggle('active-turn', !gs.isMyTurn);
+  if (isSpectating) {
+    $id('myScoreName').textContent = gs.myName || 'Player 1';
+    $id('oppScoreName').textContent = gs.opponentName || 'Player 2';
+    // Active turn based on currentTurnIndex
+    $id('myScoreBox').classList.toggle('active-turn', gs.currentTurnIndex === 0);
+    $id('oppScoreBox').classList.toggle('active-turn', gs.currentTurnIndex === 1);
+  } else {
+    $id('myScoreName').textContent = playerName || 'You';
+    $id('oppScoreName').textContent = opponentName || 'Opponent';
+    $id('myScoreBox').classList.toggle('active-turn', gs.isMyTurn);
+    $id('oppScoreBox').classList.toggle('active-turn', !gs.isMyTurn);
+  }
 }
 
 // ─── Render Status ─────────────────────────────────────────────────────────────
@@ -2040,10 +2057,19 @@ function getClockValues() {
   let opp = oppTimeMs;
   // Only the active player's clock ticks down locally
   if (gs.phase !== 'finished' && gs.phase !== 'waiting') {
-    if (gs.isMyTurn) {
-      my = Math.max(0, myTimeMs - elapsed);
+    if (isSpectating) {
+      // For spectators: my = p1, opp = p2; tick based on currentTurnIndex
+      if (gs.currentTurnIndex === 0) {
+        my = Math.max(0, myTimeMs - elapsed);
+      } else {
+        opp = Math.max(0, oppTimeMs - elapsed);
+      }
     } else {
-      opp = Math.max(0, oppTimeMs - elapsed);
+      if (gs.isMyTurn) {
+        my = Math.max(0, myTimeMs - elapsed);
+      } else {
+        opp = Math.max(0, oppTimeMs - elapsed);
+      }
     }
   }
   return { my, opp };
@@ -2066,8 +2092,15 @@ function renderClocks() {
   $id('oppClockBox').classList.toggle('ticking', isTicking && !gs.isMyTurn);
 
   // Names
-  $id('myClockName').textContent = playerName || 'You';
-  $id('oppClockName').textContent = opponentName || 'Opponent';
+  if (isSpectating) {
+    $id('myClockName').textContent = gs ? (gs.myName || 'Player 1') : 'Player 1';
+    $id('oppClockName').textContent = gs ? (gs.opponentName || 'Player 2') : 'Player 2';
+    $id('myClockBox').classList.toggle('ticking', isTicking && gs && gs.currentTurnIndex === 0);
+    $id('oppClockBox').classList.toggle('ticking', isTicking && gs && gs.currentTurnIndex === 1);
+  } else {
+    $id('myClockName').textContent = playerName || 'You';
+    $id('oppClockName').textContent = opponentName || 'Opponent';
+  }
 }
 
 function startClockInterval() {
@@ -2570,6 +2603,7 @@ function connectSocket() {
     gs.opponentPassed = false;
     gs.playerIndex = 0;
     renderAll();
+    startClockInterval();
     $id('spectatorBanner').style.display = '';
   });
 
@@ -2592,10 +2626,9 @@ function connectSocket() {
     gs.playerIndex = 0;
     stopClockInterval();
     renderAll();
-    // Show game over inline
+    // Show game over toast
     const reason = data.result ? data.result.reason : 'score';
-    const winnerName = data.result && data.result.winner ?
-      (data.result.winner === data.p1Name ? data.p1Name : data.p2Name) : null;
+    const winnerName = data.result ? data.result.winnerName : null;
     const overText = winnerName ? `${winnerName} wins! (${reason})` : `Draw! (${reason})`;
     showToast(overText, 'success');
   });

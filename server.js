@@ -277,7 +277,8 @@ function scheduleAITurn(gameId) {
       }
       // Notify spectators
       const aiSpecState = getSpectatorState(g);
-      aiSpecState.result = { winner: gameResult.winner, reason: gameResult.reason };
+      const aiWinnerName = gameResult.winner && g.players[gameResult.winner] ? g.players[gameResult.winner].name : null;
+      aiSpecState.result = { winnerName: aiWinnerName, reason: gameResult.reason };
       sendToSpectators(gameId, 'spectatorGameOver', aiSpecState);
       saveGameRecord(g, gameResult).catch(err => console.error('Failed to save AI game record:', err.message));
       setTimeout(() => cleanupGame(gameId), 5000);
@@ -498,7 +499,8 @@ function finishGameByDisconnect(gameId, disconnectedToken) {
   }
   // Notify spectators
   const specState = getSpectatorState(g);
-  specState.result = { winner: opponent, reason: 'disconnect' };
+  const dcWinnerName = opponent && g.players[opponent] ? g.players[opponent].name : null;
+  specState.result = { winnerName: dcWinnerName, reason: 'disconnect' };
   sendToSpectators(gameId, 'spectatorGameOver', specState);
 
   // Cleanup after a short delay
@@ -527,7 +529,8 @@ function finishGameByTimeout(gameId, timedOutToken) {
   }
   // Notify spectators
   const specStateT = getSpectatorState(g);
-  specStateT.result = { winner: opponent, reason: 'timeout' };
+  const toWinnerName = opponent && g.players[opponent] ? g.players[opponent].name : null;
+  specStateT.result = { winnerName: toWinnerName, reason: 'timeout' };
   sendToSpectators(gameId, 'spectatorGameOver', specStateT);
 
   const timeoutResult = { winner: opponent, loser: timedOutToken, reason: 'timeout' };
@@ -789,7 +792,8 @@ io.on('connection', (socket) => {
       }
       // Notify spectators
       const specState = getSpectatorState(g);
-      specState.result = { winner: gameResult.winner, reason: gameResult.reason };
+      const cfWinnerName = gameResult.winner && g.players[gameResult.winner] ? g.players[gameResult.winner].name : null;
+      specState.result = { winnerName: cfWinnerName, reason: gameResult.reason };
       sendToSpectators(gameId, 'spectatorGameOver', specState);
       // Save game record and word history asynchronously
       saveGameRecord(g, gameResult).catch(err => console.error('Failed to save game record:', err.message));
