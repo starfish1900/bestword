@@ -547,10 +547,14 @@ io.on('connection', (socket) => {
     const name = (data.name || 'Anonymous').substring(0, 20);
     playerNames.set(playerToken, name);
 
-    // Handle re-registration (old socket for same token)
+    // Handle re-registration (new device with same token — kick old device)
     const oldSocket = playerSockets.get(playerToken);
     if (oldSocket && oldSocket.id !== socket.id) {
+      // Notify old device and disconnect it
+      oldSocket.emit('sessionTakeover', { message: 'You signed in from another device' });
       socketPlayers.delete(oldSocket.id);
+      socketSpectating.delete(oldSocket.id);
+      oldSocket.disconnect(true);
     }
 
     playerSockets.set(playerToken, socket);
@@ -577,6 +581,11 @@ io.on('connection', (socket) => {
           // Send current game state
           socket.emit('rejoinGame', game.getGameState(g, playerToken));
           sendGameState(g);
+
+          // If it's AI's turn, make sure it's scheduled
+          if (g.isAIGame && game.getCurrentPlayer(g) === AI_TOKEN && g.phase !== 'finished') {
+            scheduleAITurn(activeGameId);
+          }
           return;
         } else {
           // Game is finished — clean up stale mapping

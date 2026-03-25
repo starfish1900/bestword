@@ -2641,6 +2641,15 @@ function connectSocket() {
     showToast(data.reason || 'Spectation ended', '');
     showScreen(lobbyScreen);
   });
+
+  socket.on('sessionTakeover', (data) => {
+    gs = null;
+    isSpectating = false;
+    stopClockInterval();
+    $id('spectatorBanner').style.display = 'none';
+    showToast(data.message || 'Signed in from another device', 'error');
+    showScreen(authScreen.classList.contains('active') ? authScreen : lobbyScreen);
+  });
 }
 
 // ─── Lobby Render ──────────────────────────────────────────────────────────────
