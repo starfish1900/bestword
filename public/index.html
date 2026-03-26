@@ -567,6 +567,105 @@
     align-items: center;
   }
 
+  /* Search form */
+  .search-form {
+    padding: 12px 20px;
+    max-height: 55vh;
+    overflow-y: auto;
+  }
+  .sf-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .sf-row label {
+    font-size: 12px;
+    color: var(--text2);
+    min-width: 75px;
+    text-align: right;
+  }
+  .sf-input, .sf-select {
+    flex: 1;
+    background: var(--bg3);
+    border: 1px solid var(--tile-border);
+    color: var(--text);
+    padding: 7px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .sf-select { cursor: pointer; }
+  .sf-back-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 20px;
+  }
+  .sf-result-count {
+    font-size: 12px;
+    color: var(--text2);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .search-results { padding-bottom: 12px; }
+  .sr-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--bg3);
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .sr-players {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .sr-score {
+    font-family: 'DM Serif Display', serif;
+    font-size: 15px;
+    color: var(--accent);
+  }
+  .sr-meta {
+    font-size: 11px;
+    color: var(--text2);
+  }
+  .sr-info { flex: 1; margin-right: 8px; }
+  .sr-tags { display: flex; gap: 3px; align-items: center; margin-top: 2px; }
+
+  /* Replay controls */
+  .replay-bar {
+    display: none;
+    background: var(--bg2);
+    border: 1px solid var(--bg3);
+    border-radius: 10px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .replay-bar button {
+    padding: 5px 12px;
+    font-size: 14px;
+    min-width: 36px;
+    cursor: pointer;
+  }
+  .replay-bar .replay-info {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--text2);
+    min-width: 80px;
+    text-align: center;
+  }
+  .replay-bar input[type="range"] {
+    flex: 1;
+    min-width: 100px;
+    accent-color: var(--accent);
+  }
+
   /* Word History Modal */
   .wh-overlay {
     position: fixed;
@@ -1103,6 +1202,7 @@
     <div id="liveGamesItems"></div>
   </div>
   <button class="btn btn-secondary" id="wordHistoryBtn" style="font-size:13px; padding:10px 24px;">&#x1F4D6; Word History (ChosenWord)</button>
+  <button class="btn btn-secondary" id="searchGamesBtn" style="font-size:13px; padding:10px 24px;">&#x1F50D; Search Games</button>
 
   <!-- Word History Modal -->
   <div class="wh-overlay" id="whOverlay" style="display:none;">
@@ -1136,6 +1236,86 @@
     </div>
     <div class="mv-stats" id="mvStats"></div>
     <div class="wh-list" id="mvList" style="max-height:55vh;"></div>
+  </div>
+</div>
+
+<!-- Search Games Modal -->
+<div class="wh-overlay" id="searchOverlay" style="display:none;">
+  <div class="wh-modal" style="max-width:600px;">
+    <div class="wh-header">
+      <h3>&#x1F50D; Search Games</h3>
+      <button class="wh-close" id="searchClose">&times;</button>
+    </div>
+    <div class="search-form" id="searchForm">
+      <div class="sf-row">
+        <label>Player</label>
+        <input type="text" class="sf-input" id="sfPlayer" placeholder="Username">
+      </div>
+      <div class="sf-row">
+        <label>Language</label>
+        <select class="sf-select" id="sfLang">
+          <option value="">Any</option>
+          <option value="en">English</option>
+          <option value="fr">Fran&ccedil;ais</option>
+          <option value="es">Espa&ntilde;ol</option>
+        </select>
+      </div>
+      <div class="sf-row">
+        <label>Variant</label>
+        <select class="sf-select" id="sfVariant">
+          <option value="">Any</option>
+          <option value="bestword">BestWord</option>
+          <option value="chosenword">ChosenWord</option>
+        </select>
+      </div>
+      <div class="sf-row">
+        <label>Bridges</label>
+        <select class="sf-select" id="sfBridge">
+          <option value="">Any</option>
+          <option value="yes">Yes</option>
+          <option value="no">No</option>
+        </select>
+      </div>
+      <div class="sf-row">
+        <label>Min score</label>
+        <input type="number" class="sf-input" id="sfMinScore" placeholder="e.g. 500" min="0">
+      </div>
+      <div class="sf-row">
+        <label>Date from</label>
+        <input type="date" class="sf-input" id="sfDateFrom">
+      </div>
+      <div class="sf-row">
+        <label>Date to</label>
+        <input type="date" class="sf-input" id="sfDateTo">
+      </div>
+      <div class="sf-row">
+        <label>Result</label>
+        <select class="sf-select" id="sfResult">
+          <option value="">Any</option>
+          <option value="score">Score</option>
+          <option value="draw">Draw</option>
+          <option value="timeout">Timeout</option>
+          <option value="disconnect">Disconnect</option>
+        </select>
+      </div>
+      <div class="sf-row">
+        <label>vs AI</label>
+        <select class="sf-select" id="sfAI">
+          <option value="">Any</option>
+          <option value="yes">Yes</option>
+          <option value="no">No</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" id="sfSearchBtn" style="width:100%; margin-top:8px;">Search</button>
+    </div>
+    <div class="search-results" id="searchResults" style="display:none;">
+      <div class="sf-back-row">
+        <button class="btn btn-secondary" id="sfBackBtn" style="padding:5px 14px; font-size:12px;">&larr; Back to filters</button>
+        <span class="sf-result-count" id="sfResultCount"></span>
+      </div>
+      <div class="wh-list" id="sfList" style="max-height:50vh;"></div>
+      <div class="wh-paging" id="sfPaging"></div>
+    </div>
   </div>
 </div>
 
@@ -1277,6 +1457,18 @@
     <div class="panel">
       <div class="panel-title" id="panelHistory">Move History</div>
       <div class="history-list" id="historyList"></div>
+    </div>
+
+    <!-- Replay Controls -->
+    <div class="replay-bar" id="replayBar" style="display:none;">
+      <button class="btn btn-secondary" id="rpStart" title="Start">&#x23EE;</button>
+      <button class="btn btn-secondary" id="rpPrev" title="Previous">&#x25C0;</button>
+      <span class="replay-info" id="rpInfo">0 / 0</span>
+      <button class="btn btn-secondary" id="rpNext" title="Next">&#x25B6;</button>
+      <button class="btn btn-secondary" id="rpEnd" title="End">&#x23ED;</button>
+      <button class="btn btn-primary" id="rpAuto" title="Auto-play">&#x25B6;&#xFE0F;</button>
+      <input type="range" id="rpSlider" min="0" max="0" value="0">
+      <button class="btn btn-secondary" id="rpExit" style="font-size:11px;">Exit Replay</button>
     </div>
   </div>
 </div>
@@ -1600,6 +1792,10 @@ let playerToken = localStorage.getItem('bestword_token'); // permanent game toke
 let playerName = localStorage.getItem('bestword_name') || '';
 let myRequestActive = false;
 let isSpectating = false;
+let isReplaying = false;
+let replayData = null;     // full game record
+let replayIndex = 0;       // current move index (0 = initial board)
+let replayAutoTimer = null;
 
 // Game state
 let gs = null; // current game state from server
@@ -1802,7 +1998,7 @@ function renderHistory() {
     const div = document.createElement('div');
 
     let who;
-    if (isSpectating) {
+    if (isSpectating || isReplaying) {
       // Use playerIndex to determine name
       const name = m.playerIndex === 0 ? gs.myName : gs.opponentName;
       who = (name || ('P' + (m.playerIndex + 1))).substring(0, 8);
@@ -1843,7 +2039,7 @@ function renderScores() {
   $id('myScoreVal').textContent = gs.myScore;
   $id('oppScoreVal').textContent = gs.opponentScore;
 
-  if (isSpectating) {
+  if (isSpectating || isReplaying) {
     $id('myScoreName').textContent = gs.myName || 'Player 1';
     $id('oppScoreName').textContent = gs.opponentName || 'Player 2';
     // Active turn based on currentTurnIndex
@@ -1873,6 +2069,18 @@ function renderStatus() {
     return;
   }
 
+  if (isReplaying) {
+    if (replayData && replayIndex >= replayData.moves.length) {
+      el.textContent = t('game_over');
+    } else if (replayData && replayIndex < replayData.moves.length) {
+      const turnName = replayData.moves[replayIndex].playerIndex === 0 ? gs.myName : gs.opponentName;
+      el.textContent = 'Move ' + replayIndex + ' / ' + replayData.moves.length + ' \u2014 ' + (turnName || 'Player') + "'s turn";
+    } else {
+      el.textContent = 'Replay';
+    }
+    return;
+  }
+
   if (gs.phase === 'finished') {
     el.textContent = t('game_over');
   } else if (!gs.isMyTurn) {
@@ -1898,9 +2106,9 @@ function renderStatus() {
 function renderActions() {
   if (!gs) return;
 
-  // Hide entire actions panel for spectators
+  // Hide entire actions panel for spectators and replay
   const actionsPanel = $id('actionsPanel').parentElement;
-  if (isSpectating) {
+  if (isSpectating || isReplaying) {
     actionsPanel.style.display = 'none';
     return;
   }
@@ -2092,11 +2300,16 @@ function renderClocks() {
   $id('oppClockBox').classList.toggle('ticking', isTicking && !gs.isMyTurn);
 
   // Names
-  if (isSpectating) {
+  if (isSpectating || isReplaying) {
     $id('myClockName').textContent = gs ? (gs.myName || 'Player 1') : 'Player 1';
     $id('oppClockName').textContent = gs ? (gs.opponentName || 'Player 2') : 'Player 2';
-    $id('myClockBox').classList.toggle('ticking', isTicking && gs && gs.currentTurnIndex === 0);
-    $id('oppClockBox').classList.toggle('ticking', isTicking && gs && gs.currentTurnIndex === 1);
+    if (isReplaying) {
+      $id('myClockBox').classList.toggle('ticking', false);
+      $id('oppClockBox').classList.toggle('ticking', false);
+    } else {
+      $id('myClockBox').classList.toggle('ticking', isTicking && gs && gs.currentTurnIndex === 0);
+      $id('oppClockBox').classList.toggle('ticking', isTicking && gs && gs.currentTurnIndex === 1);
+    }
   } else {
     $id('myClockName').textContent = playerName || 'You';
     $id('oppClockName').textContent = opponentName || 'Opponent';
@@ -2189,23 +2402,23 @@ function renderAll() {
   // Show/hide Ç virtual key based on game language
   const cedillaKey = document.querySelector('.vkb-cedilla');
   if (cedillaKey) {
-    cedillaKey.style.display = (gs && gs.lang === 'fr' && !isSpectating) ? '' : 'none';
+    cedillaKey.style.display = (gs && gs.lang === 'fr' && !isSpectating && !isReplaying) ? '' : 'none';
   }
   // Show/hide Ñ virtual key based on game language
   const tildeKey = document.querySelector('.vkb-tilde');
   if (tildeKey) {
-    tildeKey.style.display = (gs && gs.lang === 'es' && !isSpectating) ? '' : 'none';
+    tildeKey.style.display = (gs && gs.lang === 'es' && !isSpectating && !isReplaying) ? '' : 'none';
   }
-  // Hide entire virtual keyboard for spectators
+  // Hide entire virtual keyboard for spectators and replay
   const vkb = $id('virtualKeyboard');
   if (vkb) {
-    vkb.style.display = isSpectating ? 'none' : '';
+    vkb.style.display = (isSpectating || isReplaying) ? 'none' : '';
   }
 }
 
 // ─── Cell Click ────────────────────────────────────────────────────────────────
 function onCellClick(r, c) {
-  if (isSpectating) return;
+  if (isSpectating || isReplaying) return;
   if (!gs || !gs.isMyTurn || gs.phase !== 'action') return;
   if (gs.board[r][c] !== null) return; // occupied by permanent tile
 
@@ -2858,6 +3071,13 @@ function returnToLobby() {
     socket.emit('stopSpectating');
     isSpectating = false;
   }
+  if (isReplaying) {
+    if (replayAutoTimer) { clearInterval(replayAutoTimer); replayAutoTimer = null; }
+    isReplaying = false;
+    replayData = null;
+    replayIndex = 0;
+    $id('replayBar').style.display = 'none';
+  }
   gs = null;
   opponentName = '';
   myRequestActive = false;
@@ -3122,6 +3342,338 @@ $id('stopSpectateBtn').addEventListener('click', () => {
   $id('spectatorBanner').style.display = 'none';
   showScreen(lobbyScreen);
 });
+
+// ─── Search Games ─────────────────────────────────────────────────────────────
+let searchPage = 1;
+
+$id('searchGamesBtn').addEventListener('click', () => {
+  $id('searchOverlay').style.display = 'flex';
+  $id('searchForm').style.display = '';
+  $id('searchResults').style.display = 'none';
+});
+$id('searchClose').addEventListener('click', () => {
+  $id('searchOverlay').style.display = 'none';
+});
+$id('searchOverlay').addEventListener('click', (e) => {
+  if (e.target === $id('searchOverlay')) $id('searchOverlay').style.display = 'none';
+});
+$id('sfBackBtn').addEventListener('click', () => {
+  $id('searchForm').style.display = '';
+  $id('searchResults').style.display = 'none';
+});
+
+$id('sfSearchBtn').addEventListener('click', () => {
+  searchPage = 1;
+  executeSearch();
+});
+
+async function executeSearch() {
+  const params = new URLSearchParams();
+  const player = $id('sfPlayer').value.trim();
+  const lang = $id('sfLang').value;
+  const variant = $id('sfVariant').value;
+  const bridge = $id('sfBridge').value;
+  const minScore = $id('sfMinScore').value;
+  const dateFrom = $id('sfDateFrom').value;
+  const dateTo = $id('sfDateTo').value;
+  const result = $id('sfResult').value;
+  const ai = $id('sfAI').value;
+
+  if (player) params.set('player', player);
+  if (lang) params.set('lang', lang);
+  if (variant) params.set('variant', variant);
+  if (bridge) params.set('bridge', bridge);
+  if (minScore) params.set('minScore', minScore);
+  if (dateFrom) params.set('dateFrom', dateFrom);
+  if (dateTo) params.set('dateTo', dateTo);
+  if (result) params.set('result', result);
+  if (ai) params.set('ai', ai);
+  params.set('page', searchPage);
+
+  $id('sfSearchBtn').disabled = true;
+  $id('sfSearchBtn').textContent = 'Searching...';
+
+  try {
+    const resp = await fetch('/auth/games/search?' + params.toString(), {
+      headers: { Authorization: 'Bearer ' + authToken }
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      showToast(data.error || 'Search failed', 'error');
+      return;
+    }
+    renderSearchResults(data);
+  } catch (err) {
+    showToast('Search failed: ' + err.message, 'error');
+  } finally {
+    $id('sfSearchBtn').disabled = false;
+    $id('sfSearchBtn').textContent = 'Search';
+  }
+}
+
+function renderSearchResults(data) {
+  $id('searchForm').style.display = 'none';
+  $id('searchResults').style.display = '';
+  $id('sfResultCount').textContent = data.total + ' game' + (data.total !== 1 ? 's' : '') + ' found';
+
+  const list = $id('sfList');
+  list.innerHTML = '';
+
+  if (data.games.length === 0) {
+    list.innerHTML = '<div class="wh-empty">No games found</div>';
+    $id('sfPaging').innerHTML = '';
+    return;
+  }
+
+  for (const g of data.games) {
+    const item = document.createElement('div');
+    item.className = 'sr-item';
+
+    const p1 = g.players[0] || { username: '?', finalScore: 0 };
+    const p2 = g.players[1] || { username: '?', finalScore: 0 };
+    const dateStr = g.startedAt ? new Date(g.startedAt).toLocaleDateString() : '';
+    const reason = g.result ? g.result.reason : '?';
+
+    const tags = [];
+    tags.push(g.lang.toUpperCase());
+    if (g.variant === 'chosenword') tags.push('CW');
+    if (g.bridgeScoring) tags.push('\u{1F309}');
+
+    item.innerHTML = `<div class="sr-info">
+      <div class="sr-players">${esc(p1.username)} vs ${esc(p2.username)}</div>
+      <div class="sr-meta">${dateStr} \u00B7 ${reason}${tags.length ? ' \u00B7 ' + tags.join(' ') : ''}</div>
+    </div>
+    <div class="sr-score">${p1.finalScore} - ${p2.finalScore}</div>`;
+
+    const replayBtn = document.createElement('button');
+    replayBtn.className = 'btn btn-primary';
+    replayBtn.style.cssText = 'padding:5px 14px; font-size:12px; margin-left:6px;';
+    replayBtn.textContent = '\u25B6 Replay';
+    replayBtn.addEventListener('click', () => {
+      startReplay(g.id);
+    });
+    item.appendChild(replayBtn);
+    list.appendChild(item);
+  }
+
+  // Pagination
+  const pagingEl = $id('sfPaging');
+  pagingEl.innerHTML = '';
+  if (data.totalPages > 1) {
+    if (data.page > 1) {
+      const prev = document.createElement('button');
+      prev.className = 'btn btn-secondary';
+      prev.style.cssText = 'padding:5px 14px; font-size:12px;';
+      prev.textContent = '\u25C0 Prev';
+      prev.addEventListener('click', () => { searchPage = data.page - 1; executeSearch(); });
+      pagingEl.appendChild(prev);
+    }
+    const info = document.createElement('span');
+    info.style.cssText = 'font-size:12px; color:var(--text2); margin:0 8px;';
+    info.textContent = `Page ${data.page} / ${data.totalPages}`;
+    pagingEl.appendChild(info);
+    if (data.page < data.totalPages) {
+      const next = document.createElement('button');
+      next.className = 'btn btn-secondary';
+      next.style.cssText = 'padding:5px 14px; font-size:12px;';
+      next.textContent = 'Next \u25B6';
+      next.addEventListener('click', () => { searchPage = data.page + 1; executeSearch(); });
+      pagingEl.appendChild(next);
+    }
+  }
+}
+
+function esc(s) { const d = document.createElement('span'); d.textContent = s; return d.innerHTML; }
+
+// ─── Replay Engine ────────────────────────────────────────────────────────────
+
+async function startReplay(gameId) {
+  try {
+    const resp = await fetch('/auth/games/' + gameId, {
+      headers: { Authorization: 'Bearer ' + authToken }
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      showToast(data.error || 'Failed to load game', 'error');
+      return;
+    }
+
+    replayData = data;
+    replayIndex = 0;
+    isReplaying = true;
+    isSpectating = false;
+
+    // Close search modal
+    $id('searchOverlay').style.display = 'none';
+
+    // Build and show game screen
+    buildBoard();
+    showScreen(gameScreen);
+    $id('replayBar').style.display = 'flex';
+    $id('spectatorBanner').style.display = 'none';
+    $id('rpSlider').max = replayData.moves.length;
+    $id('rpSlider').value = 0;
+
+    // Build initial board state and render
+    replayRebuild();
+  } catch (err) {
+    showToast('Failed to load game: ' + err.message, 'error');
+  }
+}
+
+function replayRebuild() {
+  if (!replayData) return;
+
+  // Build empty 15x15 board
+  const board = Array.from({ length: 15 }, () => Array(15).fill(null));
+
+  // Place initial words
+  if (replayData.initWords) {
+    const iw = replayData.initWords;
+    if (iw.word1) {
+      for (let i = 0; i < iw.word1.length; i++) {
+        board[iw.word1Row][iw.word1StartCol + i] = iw.word1[i];
+      }
+    }
+    if (iw.word2) {
+      for (let i = 0; i < iw.word2.length; i++) {
+        board[iw.word2StartRow + i][iw.word2Col] = iw.word2[i];
+      }
+    }
+  }
+
+  // Apply moves up to replayIndex
+  const moveHistory = [];
+  let p1Score = 0, p2Score = 0;
+
+  for (let i = 0; i < replayIndex; i++) {
+    const m = replayData.moves[i];
+    if (m.action === 'PLACE' && m.newTiles) {
+      for (const t of m.newTiles) {
+        if (t.row >= 0 && t.row < 15 && t.col >= 0 && t.col < 15) {
+          board[t.row][t.col] = t.letter;
+        }
+      }
+    }
+    // Track scores
+    if (m.score) {
+      if (m.playerIndex === 0) p1Score += m.score;
+      else p2Score += m.score;
+    }
+    moveHistory.push(m);
+  }
+
+  // Build gs compatible with render functions
+  const p1 = replayData.players[0] || { username: '?', finalScore: 0 };
+  const p2 = replayData.players[1] || { username: '?', finalScore: 0 };
+
+  gs = {
+    board,
+    isMyTurn: false,
+    phase: replayIndex >= replayData.moves.length ? 'finished' : 'action',
+    myScore: p1Score,
+    opponentScore: p2Score,
+    myName: p1.username,
+    opponentName: p2.username,
+    myRack: [],
+    opponentRack: null,
+    opponentRackSize: 0,
+    myTime: 0,
+    oppTime: 0,
+    bag: {},
+    bagTotal: 0,
+    variant: replayData.variant,
+    lang: replayData.lang,
+    bridgeScoring: replayData.bridgeScoring,
+    letterValues: gs && gs.letterValues ? gs.letterValues : {},
+    currentTurnIndex: replayIndex < replayData.moves.length ? replayData.moves[replayIndex].playerIndex : 0,
+    moveHistory: moveHistory.map(m => ({
+      action: m.action,
+      playerIndex: m.playerIndex,
+      isMe: false,
+      word: m.word,
+      secondaryWords: m.secondaryWords,
+      score: m.score,
+      startRow: m.startRow,
+      startCol: m.startCol,
+      direction: m.direction
+    })),
+    drawDone: true,
+    drewCount: 0,
+    myPassed: false,
+    opponentPassed: false,
+    playerIndex: 0
+  };
+
+  renderAll();
+  updateReplayControls();
+}
+
+function updateReplayControls() {
+  const total = replayData ? replayData.moves.length : 0;
+  $id('rpInfo').textContent = replayIndex + ' / ' + total;
+  $id('rpSlider').value = replayIndex;
+  $id('rpStart').disabled = replayIndex === 0;
+  $id('rpPrev').disabled = replayIndex === 0;
+  $id('rpNext').disabled = replayIndex >= total;
+  $id('rpEnd').disabled = replayIndex >= total;
+}
+
+function replayStep(delta) {
+  if (!replayData) return;
+  const newIdx = replayIndex + delta;
+  if (newIdx < 0 || newIdx > replayData.moves.length) return;
+  replayIndex = newIdx;
+  replayRebuild();
+}
+
+function replayGoTo(idx) {
+  if (!replayData) return;
+  replayIndex = Math.max(0, Math.min(idx, replayData.moves.length));
+  replayRebuild();
+}
+
+function replayAutoPlay() {
+  if (replayAutoTimer) {
+    clearInterval(replayAutoTimer);
+    replayAutoTimer = null;
+    $id('rpAuto').textContent = '\u25B6\uFE0F';
+    return;
+  }
+  if (!replayData || replayIndex >= replayData.moves.length) return;
+  $id('rpAuto').textContent = '\u23F8';
+  replayAutoTimer = setInterval(() => {
+    if (!replayData || replayIndex >= replayData.moves.length) {
+      clearInterval(replayAutoTimer);
+      replayAutoTimer = null;
+      $id('rpAuto').textContent = '\u25B6\uFE0F';
+      return;
+    }
+    replayStep(1);
+  }, 1500);
+}
+
+function exitReplay() {
+  if (replayAutoTimer) {
+    clearInterval(replayAutoTimer);
+    replayAutoTimer = null;
+  }
+  isReplaying = false;
+  replayData = null;
+  replayIndex = 0;
+  gs = null;
+  $id('replayBar').style.display = 'none';
+  returnToLobby();
+}
+
+// Replay control handlers
+$id('rpStart').addEventListener('click', () => replayGoTo(0));
+$id('rpPrev').addEventListener('click', () => replayStep(-1));
+$id('rpNext').addEventListener('click', () => replayStep(1));
+$id('rpEnd').addEventListener('click', () => { if (replayData) replayGoTo(replayData.moves.length); });
+$id('rpAuto').addEventListener('click', replayAutoPlay);
+$id('rpExit').addEventListener('click', exitReplay);
+$id('rpSlider').addEventListener('input', (e) => replayGoTo(parseInt(e.target.value)));
 
 // ─── Game Button Handlers ─────────────────────────────────────────────────────
 createRequestBtn.addEventListener('click', () => {

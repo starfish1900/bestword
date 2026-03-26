@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const Player = require('./models/Player');
 const WordHistory = require('./models/WordHistory');
+const GameRecord = require('./models/GameRecord');
 const { sendVerificationEmail } = require('./email');
 
 const router = express.Router();
@@ -307,6 +308,134 @@ router.get('/word-history', authenticateToken, async (req, res) => {
     });
   } catch (err) {
     console.error('Word history error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ─── GET /auth/games/search — search completed games ─────────────────────────
+router.get('/games/search', authenticateToken, async (req, res) => {
+  try {
+    const filter = {};
+
+    // Player username (case-insensitive partial match)
+    if (req.query.player && req.query.player.trim()) {
+      filter['players.username'] = { $regex: req.query.player.trim(), $options: 'i' };
+    }
+
+    // AI games — use $elemMatch to avoid conflicts with player filter
+    if (req.query.ai === 'yes') {
+      if (!filter.$and) filter.$and = [];
+      filter.$and.push({ 'players.username': 'BestWord AI' });
+    }
+    if (req.query.ai === 'no') {
+      if (!filter.$and) filter.$and = [];
+      filter.$and.push({ 'players.username': { $ne: 'BestWord AI' } });
+    }
+
+    // Language
+    if (req.query.lang && ['en', 'fr', 'es'].includes(req.query.lang)) {
+      filter.lang = req.query.lang;
+    }
+
+    // Variant
+    if (req.query.variant && ['bestword', 'chosenword'].includes(req.query.variant)) {
+      filter.variant = req.query.variant;
+    }
+
+    // Bridge scoring
+    if (req.query.bridge === 'yes') filter.bridgeScoring = true;
+    if (req.query.bridge === 'no') filter.bridgeScoring = false;
+
+    // Min score threshold (at least one player scored >= N)
+    if (req.query.minScore) {
+      const minScore = parseInt(req.query.minScore);
+      if (!isNaN(minScore) && minScore > 0) {
+        filter['players.finalScore'] = { $gte: minScore };
+      }
+    }
+
+    // Date range
+    if (req.query.dateFrom || req.query.dateTo) {
+      filter.startedAt = {};
+      if (req.query.dateFrom) {
+        const from = new Date(req.query.dateFrom);
+        if (!isNaN(from.getTime())) filter.startedAt.$gte = from;
+      }
+      if (req.query.dateTo) {
+        const to = new Date(req.query.dateTo);
+        if (!isNaN(to.getTime())) {
+          to.setHours(23, 59, 59, 999);
+          filter.startedAt.$lte = to;
+        }
+      }
+      if (Object.keys(filter.startedAt).length === 0) delete filter.startedAt;
+    }
+
+    // Result reason
+    if (req.query.result && ['score', 'draw', 'timeout', 'disconnect'].includes(req.query.result)) {
+      filter['result.reason'] = req.query.result;
+    }
+
+    // Pagination
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = 20;
+
+    const total = await GameRecord.countDocuments(filter);
+    const games = await GameRecord.find(filter)
+      .sort({ startedAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .select('players variant lang bridgeScoring result timeControl startedAt endedAt')
+      .lean();
+
+    const results = games.map(g => ({
+      id: g._id,
+      players: g.players.map(p => ({ username: p.username, finalScore: p.finalScore })),
+      variant: g.variant,
+      lang: g.lang,
+      bridgeScoring: g.bridgeScoring,
+      result: g.result,
+      timeControl: g.timeControl,
+      startedAt: g.startedAt,
+      endedAt: g.endedAt
+    }));
+
+    res.json({
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      games: results
+    });
+  } catch (err) {
+    console.error('Game search error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ─── GET /auth/games/:id — get full game record for replay ──────────────────
+router.get('/games/:id', authenticateToken, async (req, res) => {
+  try {
+    const gameRecord = await GameRecord.findById(req.params.id).lean();
+    if (!gameRecord) {
+      return res.status(404).json({ error: 'Game not found' });
+    }
+
+    res.json({
+      id: gameRecord._id,
+      players: gameRecord.players.map(p => ({ username: p.username, finalScore: p.finalScore })),
+      variant: gameRecord.variant,
+      lang: gameRecord.lang,
+      bridgeScoring: gameRecord.bridgeScoring,
+      result: gameRecord.result,
+      timeControl: gameRecord.timeControl,
+      initWords: gameRecord.initWords,
+      moves: gameRecord.moves,
+      startedAt: gameRecord.startedAt,
+      endedAt: gameRecord.endedAt
+    });
+  } catch (err) {
+    console.error('Game fetch error:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });

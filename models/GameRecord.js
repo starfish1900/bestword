@@ -76,6 +76,7 @@ const gameRecordSchema = new mongoose.Schema({
 
 // Indexes for common queries
 gameRecordSchema.index({ 'players.playerId': 1, startedAt: -1 });
+gameRecordSchema.index({ 'players.username': 1, startedAt: -1 });
 gameRecordSchema.index({ variant: 1, lang: 1 });
 gameRecordSchema.index({ startedAt: -1 });
 
