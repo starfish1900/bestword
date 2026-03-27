@@ -489,7 +489,7 @@ function createGame(gameId, player1Token, player1Name, dawg, timeControl, lang, 
     playerOrder: [player1Token],
     currentTurnIndex: 0,
     phase: 'waiting', // waiting, draw, action, finished
-    playedPrincipalWords: new Set(),
+    playedPrincipalWords: new Set([initResult.word1, initResult.word2]),
     moveHistory: [],
     initResult,
     createdAt: Date.now(),
