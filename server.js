@@ -426,6 +426,14 @@ async function saveGameRecord(g, gameResult) {
 
     const savedRecord = await record.save();
 
+    // Count placed words per player token
+    const placedWordsCount = {};
+    for (const m of g.moveHistory) {
+      if (m.action === 'PLACE' && m.player) {
+        placedWordsCount[m.player] = (placedWordsCount[m.player] || 0) + 1;
+      }
+    }
+
     // Update player stats
     for (const token of g.playerOrder) {
       const doc = playerDocs[token];
@@ -438,8 +446,8 @@ async function saveGameRecord(g, gameResult) {
       } else {
         doc.losses++;
       }
-      // ChosenWord game counter
-      if (g.variant === 'chosenword') {
+      // ChosenWord game counter: only increment if player placed at least 5 words
+      if (g.variant === 'chosenword' && (placedWordsCount[token] || 0) >= 5) {
         const langKey = g.lang;
         doc.chosenWordGamesPlayed[langKey] = (doc.chosenWordGamesPlayed[langKey] || 0) + 1;
         // 365-game cycle clear
@@ -452,12 +460,13 @@ async function saveGameRecord(g, gameResult) {
     }
 
     // ChosenWord: save principal words to each player's word history
+    // Only save words for players who placed at least 5 words
     if (g.variant === 'chosenword') {
       const wordEntries = [];
       for (const m of g.moveHistory) {
         if (m.action === 'PLACE' && m.word) {
           const doc = playerDocs[m.player];
-          if (doc) {
+          if (doc && (placedWordsCount[m.player] || 0) >= 5) {
             wordEntries.push({
               playerId: doc._id,
               lang: g.lang,
