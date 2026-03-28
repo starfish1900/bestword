@@ -2738,32 +2738,23 @@ function connectSocket() {
       row.addEventListener('click', () => {
         clearTypedTiles();
 
-        // Find the first new tile position (skip existing board tiles)
-        let firstNewR = m.startRow, firstNewC = m.startCol;
-        for (let i = 0; i < m.word.length; i++) {
-          const cr = m.startRow + (m.direction === 'V' ? i : 0);
-          const cc = m.startCol + (m.direction === 'H' ? i : 0);
-          if (gs.board[cr][cc] === null) {
-            firstNewR = cr;
-            firstNewC = cc;
-            break;
-          }
-        }
-
-        // Set arrow at first empty cell of the word
-        arrowPos = { row: firstNewR, col: firstNewC };
+        // Directly populate typedTiles at the correct positions
+        // (bypasses handleKeyInput validation — the server already validated this move)
         arrowDir = m.direction === 'H' ? 'H' : 'V';
-        inputActive = true;
-
-        // Type only the new letters (handleKeyInput skips occupied cells)
         for (let i = 0; i < m.word.length; i++) {
           const cr = m.startRow + (m.direction === 'V' ? i : 0);
           const cc = m.startCol + (m.direction === 'H' ? i : 0);
           if (gs.board[cr][cc] === null) {
-            handleKeyInput(m.word[i]);
+            typedTiles.push({ row: cr, col: cc, letter: m.word[i] });
           }
         }
 
+        // Set arrow past the last placed tile
+        arrowPos = null;
+        inputActive = false;
+        renderBoard();
+        renderRack();
+        renderActions();
         $id('mvOverlay').style.display = 'none';
       });
       listEl.appendChild(row);
