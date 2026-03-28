@@ -196,6 +196,13 @@ function generateMoves(board, rack, bag, gaddag, dawg, lang, bridgeScoring, word
       // Bounds check: all positions must be on board
       if (startPos < 0 || endPos > 15 || fixed < 0 || fixed >= 15) return;
 
+      // Verify board compatibility: occupied cells must match the word's letters
+      for (let i = 0; i < word.length; i++) {
+        const r = dir === 'H' ? fixed : startPos + i;
+        const c = dir === 'H' ? startPos + i : fixed;
+        if (board[r][c] !== null && board[r][c] !== word[i]) return; // board conflict
+      }
+
       // Verify word boundaries
       const before = getCell(fixed, startPos - 1);
       if (before !== null && before !== undefined) return;
@@ -241,7 +248,8 @@ function generateMoves(board, rack, bag, gaddag, dawg, lang, bridgeScoring, word
         if (result) {
           wordChars.push(cell);
           if (result.terminal) {
-            recordMove(fixed, anchorPos - (wordChars.length - 1 - (wordChars.length - wordChars.indexOf(cell) - 1)), wordChars, newTiles);
+            const startPos = anchorPos - (wordChars.length - 1 - (pos - anchorPos));
+            recordMove(fixed, startPos, wordChars, newTiles);
           }
           extendRight(fixed, pos + 1, result.index, wordChars, newTiles, anchorPos);
           wordChars.pop();
