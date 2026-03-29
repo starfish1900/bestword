@@ -1993,13 +1993,16 @@ function renderHistory() {
   if (!gs) return;
   const el = $id('historyList');
   el.innerHTML = '';
+  let moveNum = 0;
   for (let i = 0; i < gs.moveHistory.length; i++) {
     const m = gs.moveHistory[i];
+    // Skip draw/choose entries — only show visible actions
+    if (m.action === 'DRAW' || m.action === 'CHOOSE') continue;
+    moveNum++;
     const div = document.createElement('div');
 
     let who;
     if (isSpectating || isReplaying) {
-      // Use playerIndex to determine name
       const name = m.playerIndex === 0 ? gs.myName : gs.opponentName;
       who = (name || ('P' + (m.playerIndex + 1))).substring(0, 8);
       div.className = 'history-move';
@@ -2008,24 +2011,24 @@ function renderHistory() {
       div.className = 'history-move' + (m.isMe ? ' mine' : '');
     }
     if (m.action === 'PASS') {
-      div.textContent = `${i + 1}. ${who}: ${t('hist_pass')}`;
+      div.textContent = `${moveNum}. ${who}: ${t('hist_pass')}`;
     } else if (m.action === 'NO_WORDS') {
-      div.textContent = `${i + 1}. ${who}: ${t('hist_no_words')}`;
+      div.textContent = `${moveNum}. ${who}: ${t('hist_no_words')}`;
     } else if (m.action === 'PLACE') {
       const colLetter = String.fromCharCode(65 + m.startCol);
       const rowNum = m.startRow + 1;
       const moveStr = m.direction === 'V'
         ? `${colLetter}${rowNum}`
         : `${rowNum}${colLetter}`;
-      div.innerHTML = `${i + 1}. ${who}: <span class="hw">${m.word}</span> (${moveStr}) <span class="hs">+${m.score}</span>`;
+      div.innerHTML = `${moveNum}. ${who}: <span class="hw">${m.word}</span> (${moveStr}) <span class="hs">+${m.score}</span>`;
       if (m.secondaryWords && m.secondaryWords.length > 0) {
         div.innerHTML += ` <span style="color:var(--text2);">[+${m.secondaryWords.join(', ')}]</span>`;
       }
     } else if (m.action === 'DISCONNECT_LOSS') {
-      div.textContent = `${i + 1}. ${who}: ${t('hist_disconnect')}`;
+      div.textContent = `${moveNum}. ${who}: ${t('hist_disconnect')}`;
       div.style.color = 'var(--red)';
     } else if (m.action === 'TIMEOUT_LOSS') {
-      div.textContent = `${i + 1}. ${who}: ${t('hist_timeout')}`;
+      div.textContent = `${moveNum}. ${who}: ${t('hist_timeout')}`;
       div.style.color = 'var(--red)';
     }
     el.appendChild(div);
