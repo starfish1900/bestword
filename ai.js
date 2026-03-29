@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// BestWord/ChosenWord AI Opponent
+// BestWord/ChoiceWord AI Opponent
 // Uses GADDAG move generation with adaptive NO WORDS threshold
-// and single-pass consonant selection for ChosenWord.
+// and single-pass consonant selection for ChoiceWord.
 // Four difficulty levels: easy, medium, hard, expert.
 // AI does NOT use word history (vocabulary depletion is a human challenge).
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -78,7 +78,7 @@ function getNoWordsThreshold(g, aiToken, difficulty) {
   return threshold;
 }
 
-// ─── ChosenWord: single-pass consonant selection ─────────────────────────────
+// ─── ChoiceWord: single-pass consonant selection ─────────────────────────────
 function chooseBestConsonants(g, aiToken, gaddag, dawg, difficulty) {
   const player = g.players[aiToken];
   const rackCount = player.rack.length;

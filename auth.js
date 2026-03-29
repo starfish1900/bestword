@@ -273,7 +273,7 @@ router.get('/me', authenticateToken, async (req, res) => {
   }
 });
 
-// ─── GET /auth/word-history — get player's ChosenWord word history ────────────
+// ─── GET /auth/word-history — get player's ChoiceWord word history ────────────
 router.get('/word-history', authenticateToken, async (req, res) => {
   try {
     const player = await Player.findById(req.player.id);

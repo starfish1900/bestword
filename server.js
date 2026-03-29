@@ -152,7 +152,7 @@ function getSpectatorState(gameObj) {
     id: gameObj.id,
     board: gameObj.board,
     phase: gameObj.phase,
-    // Spectators see racks only in ChosenWord (perfect information)
+    // Spectators see racks only in ChoiceWord (perfect information)
     p1Rack: isChosenWord ? gameObj.players[p1Token].rack : null,
     p2Rack: (isChosenWord && p2Token && gameObj.players[p2Token]) ? gameObj.players[p2Token].rack : null,
     p1RackSize: gameObj.players[p1Token] ? gameObj.players[p1Token].rack.length : 0,
@@ -446,7 +446,7 @@ async function saveGameRecord(g, gameResult) {
       } else {
         doc.losses++;
       }
-      // ChosenWord game counter: only increment if player placed at least 5 words
+      // ChoiceWord game counter: only increment if player placed at least 5 words
       if (g.variant === 'chosenword' && (placedWordsCount[token] || 0) >= 5) {
         const langKey = g.lang;
         doc.chosenWordGamesPlayed[langKey] = (doc.chosenWordGamesPlayed[langKey] || 0) + 1;
@@ -459,7 +459,7 @@ async function saveGameRecord(g, gameResult) {
       await doc.save();
     }
 
-    // ChosenWord: save principal words to each player's word history
+    // ChoiceWord: save principal words to each player's word history
     // Only save words for players who placed at least 5 words
     if (g.variant === 'chosenword') {
       const wordEntries = [];
@@ -891,7 +891,7 @@ io.on('connection', (socket) => {
 
     const { startRow, startCol, direction, word } = data;
 
-    // ChosenWord: check word history before validating move
+    // ChoiceWord: check word history before validating move
     if (g.variant === 'chosenword' && MONGODB_URI) {
       try {
         const player = await Player.findOne({ playerToken });
@@ -961,7 +961,7 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Get word history for ChosenWord
+    // Get word history for ChoiceWord
     let wordHistorySet = null;
     if (g.variant === 'chosenword' && MONGODB_URI) {
       try {

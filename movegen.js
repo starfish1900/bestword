@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// Move Generator — Enumerates all legal BestWord/ChosenWord placements
+// Move Generator — Enumerates all legal BestWord/ChoiceWord placements
 // Uses a GADDAG for efficient anchor-based generation.
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -138,7 +138,7 @@ function generateMoves(board, rack, bag, gaddag, dawg, lang, bridgeScoring, word
   const seen = new Set();
   const rawMoves = [];
 
-  // Blocked words (ChosenWord history)
+  // Blocked words (ChoiceWord history)
   const blocked = wordHistory ? new Set(wordHistory) : null;
 
   // ─── Direction-abstracted helpers ──────────────────────────────────────────
@@ -214,7 +214,7 @@ function generateMoves(board, rack, bag, gaddag, dawg, lang, bridgeScoring, word
       if (seen.has(key)) return;
       seen.add(key);
 
-      // Check blocked words (ChosenWord history)
+      // Check blocked words (ChoiceWord history)
       if (blocked && blocked.has(word)) return;
 
       rawMoves.push({

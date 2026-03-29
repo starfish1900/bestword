@@ -465,7 +465,7 @@
     line-height: 1.6;
   }
 
-  /* Consonant picker (ChosenWord) */
+  /* Consonant picker (ChoiceWord) */
   .picker-label {
     font-size: 13px;
     color: var(--text2);
@@ -1178,7 +1178,7 @@
     <span class="tc-label">Variant:</span>
     <select class="tc-select" id="variantSelect">
       <option value="bestword" selected>BestWord</option>
-      <option value="chosenword">ChosenWord</option>
+      <option value="chosenword">ChoiceWord</option>
     </select>
     <button class="btn btn-primary" id="createRequestBtn">Create Game</button>
     <select class="tc-select" id="aiDifficultySelect">
@@ -1201,7 +1201,7 @@
     <h3>&#x1F441; Live Games</h3>
     <div id="liveGamesItems"></div>
   </div>
-  <button class="btn btn-secondary" id="wordHistoryBtn" style="font-size:13px; padding:10px 24px;">&#x1F4D6; Word History (ChosenWord)</button>
+  <button class="btn btn-secondary" id="wordHistoryBtn" style="font-size:13px; padding:10px 24px;">&#x1F4D6; Word History (ChoiceWord)</button>
   <button class="btn btn-secondary" id="searchGamesBtn" style="font-size:13px; padding:10px 24px;">&#x1F50D; Search Games</button>
 
   <!-- Word History Modal -->
@@ -1265,7 +1265,7 @@
         <select class="sf-select" id="sfVariant">
           <option value="">Any</option>
           <option value="bestword">BestWord</option>
-          <option value="chosenword">ChosenWord</option>
+          <option value="chosenword">ChoiceWord</option>
         </select>
       </div>
       <div class="sf-row">
@@ -1433,7 +1433,7 @@
       <div class="panel-title" id="panelActions">Actions</div>
       <div class="actions" id="actionsPanel">
         <button class="btn btn-primary" id="drawBtn" disabled>Draw Consonants</button>
-        <!-- Consonant picker for ChosenWord -->
+        <!-- Consonant picker for ChoiceWord -->
         <div id="consonantPicker" style="display:none;">
           <div class="picker-label" id="pickerLabel">Choose <span id="pickerCount">2</span> consonant(s):</div>
           <div class="picker-tiles" id="pickerTiles"></div>
@@ -1539,7 +1539,7 @@ const I18N = {
     picker_rack_full: 'Rack full \u2014 no choice needed',
     opp_rack_title: "Opponent's Rack",
     bridge_active: '\u{1F309} Bridge scoring active',
-    variant_chosenword: 'ChosenWord \u2014 Perfect Information',
+    variant_chosenword: 'ChoiceWord \u2014 Perfect Information',
     opp_played: (w, s) => `Opponent played ${w} for +${s}`,
     you_played: (w, s) => `You played ${w} for +${s}!`,
     not_on_rack: l => `${l} is not available on your rack`,
@@ -1588,7 +1588,7 @@ const I18N = {
       NOT_A_CONSONANT: e => `${e.letter} is not a consonant`,
       CONSONANT_NOT_IN_BAG: e => `${e.letter} is not available in the bag`,
       DUPLICATE_CONSONANT: e => `Cannot choose ${e.letter} twice \u2014 pick two different consonants`,
-      NOT_CHOSENWORD: 'Not a ChosenWord game',
+      NOT_CHOSENWORD: 'Not a ChoiceWord game',
       USE_CHOOSE_CONSONANTS: 'Use the consonant picker to choose',
       GENERATION_ERROR: 'Error generating moves'
     }
@@ -1624,7 +1624,7 @@ const I18N = {
     picker_rack_full: 'Chevalet plein \u2014 aucun choix n\u00E9cessaire',
     opp_rack_title: "Chevalet de l'adversaire",
     bridge_active: '\u{1F309} Scoring Ponts actif',
-    variant_chosenword: 'ChosenWord \u2014 Information parfaite',
+    variant_chosenword: 'ChoiceWord \u2014 Information parfaite',
     opp_played: (w, s) => `Adversaire a jou\u00E9 ${w} pour +${s}`,
     you_played: (w, s) => `Vous avez jou\u00E9 ${w} pour +${s}\u00A0!`,
     not_on_rack: l => `${l} n'est pas sur votre chevalet`,
@@ -1673,7 +1673,7 @@ const I18N = {
       NOT_A_CONSONANT: e => `${e.letter} n'est pas une consonne`,
       CONSONANT_NOT_IN_BAG: e => `${e.letter} n'est pas disponible dans le sac`,
       DUPLICATE_CONSONANT: e => `Impossible de choisir ${e.letter} deux fois \u2014 choisissez deux consonnes diff\u00E9rentes`,
-      NOT_CHOSENWORD: 'Pas une partie ChosenWord',
+      NOT_CHOSENWORD: 'Pas une partie ChoiceWord',
       USE_CHOOSE_CONSONANTS: 'Utilisez le s\u00E9lecteur de consonnes',
       GENERATION_ERROR: 'Erreur de g\u00E9n\u00E9ration des coups'
     }
@@ -1709,7 +1709,7 @@ const I18N = {
     picker_rack_full: 'Atril lleno \u2014 no se necesita elecci\u00F3n',
     opp_rack_title: 'Atril del oponente',
     bridge_active: '\u{1F309} Puntuaci\u00F3n Puentes activa',
-    variant_chosenword: 'ChosenWord \u2014 Informaci\u00F3n perfecta',
+    variant_chosenword: 'ChoiceWord \u2014 Informaci\u00F3n perfecta',
     opp_played: (w, s) => `El oponente jug\u00F3 ${w} por +${s}`,
     you_played: (w, s) => `Jugaste ${w} por +${s}\u00A0!`,
     not_on_rack: l => `${l} no est\u00E1 en tu atril`,
@@ -1758,7 +1758,7 @@ const I18N = {
       NOT_A_CONSONANT: e => `${e.letter} no es una consonante`,
       CONSONANT_NOT_IN_BAG: e => `${e.letter} no est\u00E1 disponible en la bolsa`,
       DUPLICATE_CONSONANT: e => `No puedes elegir ${e.letter} dos veces \u2014 elige dos consonantes diferentes`,
-      NOT_CHOSENWORD: 'No es una partida ChosenWord',
+      NOT_CHOSENWORD: 'No es una partida ChoiceWord',
       USE_CHOOSE_CONSONANTS: 'Usa el selector de consonantes',
       GENERATION_ERROR: 'Error al generar jugadas'
     }
@@ -2119,7 +2119,7 @@ function renderActions() {
   const isChosenWord = gs.variant === 'chosenword';
 
   // BestWord: show draw button, hide picker
-  // ChosenWord: hide draw button, show picker
+  // ChoiceWord: hide draw button, show picker
   const picker = $id('consonantPicker');
   if (isChosenWord) {
     drawBtn.style.display = 'none';
@@ -2139,7 +2139,7 @@ function renderActions() {
   clearBtn.disabled = typedTiles.length === 0;
 }
 
-// ─── Consonant Picker (ChosenWord) ────────────────────────────────────────────
+// ─── Consonant Picker (ChoiceWord) ────────────────────────────────────────────
 let pickedConsonants = [];
 
 function renderConsonantPicker() {
@@ -2223,7 +2223,7 @@ function updatePickerDisplay(toChoose) {
   });
 }
 
-// ─── Render Opponent Rack (ChosenWord) ─────────────────────────────────────────
+// ─── Render Opponent Rack (ChoiceWord) ─────────────────────────────────────────
 function renderOpponentRack() {
   const panel = $id('oppRackPanel');
   if (!gs || gs.variant !== 'chosenword' || !gs.opponentRack) {

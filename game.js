@@ -598,7 +598,7 @@ function performDraw(game, playerToken) {
   return { drawn, rackCount: player.rack.length };
 }
 
-// Perform the consonant choice phase (ChosenWord variant)
+// Perform the consonant choice phase (ChoiceWord variant)
 function performChooseConsonants(game, playerToken, chosenLetters) {
   if (game.phase !== 'draw') return { error: { code: 'NOT_DRAW_PHASE' } };
   if (getCurrentPlayer(game) !== playerToken) return { error: { code: 'NOT_YOUR_TURN' } };
@@ -825,7 +825,7 @@ function getGameState(game, playerToken) {
     myScore: game.players[playerToken] ? game.players[playerToken].score : 0,
     opponentScore: opponent && game.players[opponent] ? game.players[opponent].score : 0,
     opponentRackSize: opponent && game.players[opponent] ? game.players[opponent].rack.length : 0,
-    // ChosenWord: expose opponent rack (perfect information)
+    // ChoiceWord: expose opponent rack (perfect information)
     opponentRack: (game.variant === 'chosenword' && opponent && game.players[opponent])
       ? game.players[opponent].rack : null,
     isMyTurn: currentPlayer === playerToken,
@@ -855,7 +855,7 @@ function getGameState(game, playerToken) {
     letterValues: getLangConfig(game.lang).letterValues,
     bridgeScoring: game.bridgeScoring,
     variant: game.variant,
-    // For ChosenWord consonant picker: available consonants in bag
+    // For ChoiceWord consonant picker: available consonants in bag
     consonantsAvailable: game.variant === 'chosenword' ? (() => {
       const cfg = getLangConfig(game.lang);
       const avail = {};
