@@ -1082,12 +1082,12 @@ io.on('connection', (socket) => {
     if (gameId && games.has(gameId)) {
       const g = games.get(gameId);
       if (g.phase !== 'finished' && g.players[playerToken]) {
-        // AI games: give player time to reconnect (app restart)
+        // AI games: give player generous time to reconnect (no real opponent waiting)
         if (g.isAIGame) {
           g.players[playerToken].connected = false;
           g.players[playerToken].disconnectTimer = setTimeout(() => {
             finishGameByDisconnect(gameId, playerToken);
-          }, DISCONNECT_TIMEOUT);
+          }, 5 * 60 * 1000); // 5 minutes for AI games
           return;
         }
 
