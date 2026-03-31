@@ -1142,12 +1142,16 @@ setInterval(() => {
     if (g.phase === 'finished') continue;
     // Check if all human players are disconnected
     let allDisconnected = true;
+    let hasDisconnectTimer = false;
     for (const token of g.playerOrder) {
       if (token === AI_TOKEN) continue; // AI is never "disconnected"
       const p = g.players[token];
       if (p && p.connected) { allDisconnected = false; break; }
+      if (p && p.disconnectTimer) { hasDisconnectTimer = true; }
     }
     if (!allDisconnected) continue;
+    // Don't clean up if a disconnect timer is running (player may reconnect)
+    if (hasDisconnectTimer) continue;
     // Check if game has been abandoned (created > 60s ago with no connected players)
     if (now - (g.lastActivityAt || g.createdAt) > 60000) {
       console.log(`Cleaning up zombie game: ${gameId}`);
