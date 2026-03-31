@@ -549,9 +549,11 @@ function finishGameByTimeout(gameId, timedOutToken) {
 
 // ─── Socket.io ─────────────────────────────────────────────────────────────────
 io.on('connection', (socket) => {
+  console.log(`[CONNECTION] new socket: ${socket.id}`);
   let playerToken = null;
 
   socket.on('register', (data) => {
+    console.log(`[REGISTER] token=${data.token}, socketId=${socket.id}`);
     playerToken = data.token;
     const name = (data.name || 'Anonymous').substring(0, 20);
     playerNames.set(playerToken, name);
@@ -822,17 +824,21 @@ io.on('connection', (socket) => {
   }
 
   socket.on('draw', () => {
-    if (!playerToken) return;
+    console.log(`[DRAW] playerToken=${playerToken}, socketId=${socket.id}`);
+    if (!playerToken) { console.log('[DRAW] REJECTED: no playerToken'); return; }
     const gameId = playerGames.get(playerToken);
-    if (!gameId) return;
+    console.log(`[DRAW] gameId=${gameId}`);
+    if (!gameId) { console.log('[DRAW] REJECTED: no gameId'); return; }
     const g = games.get(gameId);
-    if (!g || g.phase === 'finished') return;
+    if (!g || g.phase === 'finished') { console.log(`[DRAW] REJECTED: no game or finished`); return; }
     if (g.variant === 'chosenword') {
+      console.log('[DRAW] REJECTED: chosenword variant');
       socket.emit('actionError', { code: 'USE_CHOOSE_CONSONANTS' });
       return;
     }
 
     const result = game.performDraw(g, playerToken);
+    console.log(`[DRAW] performDraw result:`, result.error ? result.error : 'OK');
     if (handleActionResult(result, gameId, g)) return;
 
     socket.emit('drawResult', { drawn: result.drawn, rackCount: result.rackCount });
