@@ -1,14 +1,14 @@
 const nodemailer = require('nodemailer');
 
-// Gmail SMTP configuration
-// Requires environment variables: GMAIL_USER and GMAIL_APP_PASSWORD
+// Amazon SES SMTP configuration
+// Requires environment variables: SES_SMTP_HOST, SES_SMTP_USER, SES_SMTP_PASS
 const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true, // SSL
+  host: process.env.SES_SMTP_HOST || 'email-smtp.us-east-1.amazonaws.com',
+  port: 587,
+  secure: false, // STARTTLS
   auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD
+    user: process.env.SES_SMTP_USER,
+    pass: process.env.SES_SMTP_PASS
   }
 });
 
@@ -16,11 +16,11 @@ const transporter = nodemailer.createTransport({
 async function verifyMailConfig() {
   try {
     await transporter.verify();
-    console.log('Gmail SMTP connection verified');
+    console.log('Amazon SES SMTP connection verified');
     return true;
   } catch (err) {
-    console.error('Gmail SMTP verification failed:', err.message);
-    console.error('Make sure GMAIL_USER and GMAIL_APP_PASSWORD environment variables are set');
+    console.error('Amazon SES SMTP verification failed:', err.message);
+    console.error('Make sure SES_SMTP_HOST, SES_SMTP_USER, and SES_SMTP_PASS environment variables are set');
     return false;
   }
 }
@@ -31,7 +31,7 @@ async function sendVerificationEmail(email, username, token) {
   const verifyUrl = `${baseUrl}/auth/verify?token=${token}`;
 
   const mailOptions = {
-    from: `"BestWord" <${process.env.GMAIL_USER}>`,
+    from: '"BestWord" <noreply@bestword.net>',
     to: email,
     subject: 'BestWord — Verify your email',
     html: `
