@@ -159,10 +159,44 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// ─── GET /verify ───────────────────────────────────────────────────────────────
+// ─── GET /verify — show confirmation page (does NOT consume the token) ─────────
 router.get('/verify', async (req, res) => {
   try {
     const { token } = req.query;
+
+    if (!token) {
+      return res.status(400).send(verificationPage('Invalid verification link.', false));
+    }
+
+    const player = await Player.findOne({
+      verificationToken: token,
+      verificationTokenExpires: { $gt: new Date() }
+    });
+
+    if (!player) {
+      // Check if already verified (link scanner may have triggered POST already)
+      const verifiedPlayer = await Player.findOne({ verified: true, verificationToken: null });
+      return res.status(400).send(verificationPage(
+        'Verification link is invalid or has expired. If you already verified, try logging in.', false));
+    }
+
+    if (player.verified) {
+      return res.send(verificationPage('Your email is already verified. You can log in.', true));
+    }
+
+    // Show confirmation page with a button — the actual verification happens on POST
+    res.send(verificationConfirmPage(token, player.username));
+
+  } catch (err) {
+    console.error('Verification page error:', err);
+    res.status(500).send(verificationPage('Server error during verification.', false));
+  }
+});
+
+// ─── POST /verify — actually verify the account ───────────────────────────────
+router.post('/verify', async (req, res) => {
+  try {
+    const { token } = req.body;
 
     if (!token) {
       return res.status(400).send(verificationPage('Invalid verification link.', false));
@@ -488,6 +522,64 @@ function verificationPage(message, success) {
     <h1>BestWord</h1>
     <p class="msg">${message}</p>
     <a href="/">Go to BestWord</a>
+  </div>
+</body>
+</html>`;
+}
+
+function verificationConfirmPage(token, username) {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BestWord — Verify Your Email</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f1117;
+      color: #e8e6e3;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+    .box {
+      background: #181b24;
+      border: 2px solid #e8a946;
+      border-radius: 16px;
+      padding: 40px;
+      text-align: center;
+      max-width: 400px;
+    }
+    h1 { color: #e8a946; font-size: 28px; margin-bottom: 16px; }
+    p { color: #9ea3b0; font-size: 16px; line-height: 1.6; }
+    .name { color: #e8e6e3; font-weight: 600; }
+    button {
+      margin-top: 20px;
+      background: #4caf7d;
+      color: #fff;
+      padding: 14px 36px;
+      border-radius: 8px;
+      border: none;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover { background: #3d9a6a; }
+    button:disabled { background: #555; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>BestWord</h1>
+    <p>Hello <span class="name">${username}</span>,<br>click the button below to verify your email.</p>
+    <form method="POST" action="/auth/verify">
+      <input type="hidden" name="token" value="${token}">
+      <button type="submit" id="verifyBtn">Verify My Email</button>
+    </form>
   </div>
 </body>
 </html>`;

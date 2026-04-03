@@ -22,6 +22,7 @@ const io = new Server(server, { pingInterval: 10000, pingTimeout: 20000 });
 
 // ─── Middleware ─────────────────────────────────────────────────────────────────
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use('/auth', authRouter);
 app.use(express.static(path.join(__dirname, 'public')));
 
