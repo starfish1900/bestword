@@ -141,6 +141,29 @@
     transition: border-color 0.2s;
   }
   .name-input:focus { border-color: var(--accent); }
+  .password-wrap {
+    position: relative;
+    display: inline-block;
+  }
+  .password-wrap .name-input { padding-right: 44px; }
+  .password-toggle {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--dim);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 4px;
+    line-height: 1;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+  }
+  .password-toggle:hover { opacity: 1; }
+  /* Suppress Edge's native password reveal so we don't get two icons */
+  input::-ms-reveal { display: none; }
   .btn {
     padding: 12px 28px;
     border: none;
@@ -1120,7 +1143,10 @@
   <!-- Login form (shown by default) -->
   <div id="loginForm">
     <input type="text" class="name-input" id="loginInput" placeholder="Email or username" maxlength="50" autofocus>
-    <input type="password" class="name-input" id="loginPassword" placeholder="Password" maxlength="50">
+    <div class="password-wrap">
+      <input type="password" class="name-input" id="loginPassword" placeholder="Password" maxlength="50">
+      <button type="button" class="password-toggle" onclick="togglePassword('loginPassword', this)" tabindex="-1">👁</button>
+    </div>
     <button class="btn btn-primary" id="loginBtn" style="width:260px;">Log In</button>
     <div class="auth-switch">
       Don't have an account? <a href="#" id="showSignup">Sign up</a>
@@ -1131,7 +1157,10 @@
   <div id="signupForm" style="display:none;">
     <input type="email" class="name-input" id="signupEmail" placeholder="Email" maxlength="50">
     <input type="text" class="name-input" id="signupUsername" placeholder="Username (3-15, alphanumeric)" maxlength="15">
-    <input type="password" class="name-input" id="signupPassword" placeholder="Password (6+ characters)" maxlength="50">
+    <div class="password-wrap">
+      <input type="password" class="name-input" id="signupPassword" placeholder="Password (6+ characters)" maxlength="50">
+      <button type="button" class="password-toggle" onclick="togglePassword('signupPassword', this)" tabindex="-1">👁</button>
+    </div>
     <button class="btn btn-primary" id="signupBtn" style="width:260px;">Sign Up</button>
     <div class="auth-switch">
       Already have an account? <a href="#" id="showLogin">Log in</a>
@@ -3091,6 +3120,18 @@ const authError = $id('authError');
 const loginForm = $id('loginForm');
 const signupForm = $id('signupForm');
 const verifyMessage = $id('verifyMessage');
+
+function togglePassword(inputId, btn) {
+  const input = $id(inputId);
+  if (input.type === 'password') {
+    input.type = 'text';
+    btn.textContent = '🙈';
+  } else {
+    input.type = 'password';
+    btn.textContent = '👁';
+  }
+  input.focus();
+}
 
 function showAuthError(msg) {
   authError.textContent = msg;
