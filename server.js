@@ -258,7 +258,6 @@ function scheduleAITurn(gameId) {
 
     try {
       const result = await executeAITurn(g, gameId, aiGaddag, dawg);
-      console.log(`AI [${gameId}]: ${result.action || 'error'}${result.word ? ' ' + result.word : ''}${result.score ? ' (' + result.score + ')' : ''}${result.error ? ' — ' + result.error : ''}`);
     } catch (err) {
       console.error('AI turn error:', err);
     }
