@@ -392,7 +392,14 @@
     flex-shrink: 0;
     overflow-y: auto;
     max-height: 100%;
+    /* Thin themed scrollbar */
+    scrollbar-width: thin;
+    scrollbar-color: var(--bg3) transparent;
   }
+  .sidebar::-webkit-scrollbar { width: 4px; }
+  .sidebar::-webkit-scrollbar-track { background: transparent; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 2px; }
+  .sidebar::-webkit-scrollbar-thumb:hover { background: var(--tile-border); }
   .panel {
     background: var(--bg2);
     border: 1px solid var(--bg3);
@@ -848,15 +855,17 @@
 
   /* Move history */
   .history-list {
-    max-height: 220px;
     overflow-y: auto;
     font-family: 'IBM Plex Mono', monospace;
     font-size: 12px;
     color: var(--text2);
     line-height: 1.8;
+    scrollbar-width: thin;
+    scrollbar-color: var(--bg3) transparent;
   }
-  .history-list::-webkit-scrollbar { width:6px; }
-  .history-list::-webkit-scrollbar-thumb { background: var(--bg3); border-radius:3px; }
+  .history-list::-webkit-scrollbar { width:4px; }
+  .history-list::-webkit-scrollbar-track { background: transparent; }
+  .history-list::-webkit-scrollbar-thumb { background: var(--bg3); border-radius:2px; }
   .history-move { padding: 2px 0; }
   .history-move.mine { color: var(--accent); }
   .history-move .hw { color: var(--text); font-weight: 600; }
@@ -1837,6 +1846,8 @@ const disconnectBanner = $id('disconnectBanner');
 function showScreen(screen) {
   [authScreen, lobbyScreen, gameScreen].forEach(s => s.classList.remove('active'));
   screen.classList.add('active');
+  // Prevent body scroll on game screen (sidebar handles its own scroll)
+  document.body.style.overflow = (screen === gameScreen) ? 'hidden' : '';
 }
 
 // ─── Toast ─────────────────────────────────────────────────────────────────────
