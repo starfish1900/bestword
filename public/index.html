@@ -281,7 +281,8 @@
     flex-direction: row;
     padding: 16px;
     gap: 16px;
-    min-height: calc(100vh - 60px);
+    height: calc(100vh - 60px);
+    overflow: hidden;
     justify-content: center;
   }
 
@@ -386,53 +387,64 @@
   .sidebar {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 6px;
     width: 320px;
     flex-shrink: 0;
+    overflow-y: auto;
+    max-height: 100%;
   }
   .panel {
     background: var(--bg2);
     border: 1px solid var(--bg3);
     border-radius: 10px;
-    padding: 14px 16px;
+    padding: 10px 14px;
   }
   .panel-title {
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 1.2px;
     color: var(--text2);
-    margin-bottom: 10px;
+    margin-bottom: 6px;
     font-weight: 700;
   }
 
-  /* Scores */
-  .scores {
+  /* Score Strip (combined score + clock) */
+  .score-strip {
     display: flex;
     justify-content: space-between;
-    gap: 10px;
+    gap: 8px;
   }
-  .score-box {
+  .score-strip-player {
     flex: 1;
     text-align: center;
-    padding: 10px;
+    padding: 6px 8px;
     border-radius: 8px;
     background: var(--bg3);
   }
-  .score-box.active-turn {
-    border: 2px solid var(--accent);
-  }
-  .score-box .sname {
-    font-size: 12px;
+  .sname {
+    font-size: 11px;
     color: var(--text2);
-    margin-bottom: 4px;
-    font-weight: 600;
+    margin-bottom: 2px;
   }
-  .score-box .sval {
-    font-family: 'DM Serif Display', serif;
+  .sval {
     font-size: 28px;
+    font-weight: 700;
+    font-family: Georgia, serif;
     color: var(--text);
   }
-  .score-box .sval.mine { color: var(--accent); }
+  .sval.mine { color: var(--accent); }
+  .clock-time {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text2);
+    margin-top: 2px;
+  }
+  .clock-time.mine { color: var(--accent); }
+  .clock-time.low { color: var(--red); }
+  .score-strip-player.active-turn {
+    border: 2px solid var(--accent);
+  }
 
   /* Rack */
   .rack-tiles {
@@ -475,10 +487,11 @@
   /* Actions */
   .actions {
     display: flex;
-    flex-direction: column;
-    gap: 8px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 6px;
   }
-  .actions .btn { width: 100%; }
+  .actions .btn { flex: 0 1 auto; width: auto; font-size: 12px; padding: 8px 12px; }
 
   /* Bag */
   .bag-info {
@@ -538,28 +551,35 @@
   .picker-selected span { color: var(--green); font-weight: 600; }
 
   /* Variant indicator */
-  .variant-indicator {
-    display: none;
+  .game-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+  .game-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: default;
+  }
+  .badge-bridge {
+    border: 1px solid var(--green);
+    color: var(--green);
+    background: rgba(76, 175, 125, 0.10);
+  }
+  .badge-variant {
     border: 1px solid var(--accent);
-    border-radius: 8px;
-    padding: 6px 12px;
-    font-size: 12px;
     color: var(--accent);
-    text-align: center;
     background: rgba(232, 169, 70, 0.08);
   }
-
-  /* Spectator banner */
-  .spectator-banner {
-    display: none;
+  .badge-spectator {
     border: 1px solid #5b8def;
-    border-radius: 8px;
-    padding: 8px 12px;
-    font-size: 13px;
     color: #5b8def;
-    text-align: center;
     background: rgba(91, 141, 239, 0.08);
-    font-weight: 600;
   }
 
   /* Live games in lobby */
@@ -913,37 +933,6 @@
     -webkit-user-select: none;
   }
 
-  /* Clocks */
-  .clocks {
-    display: flex;
-    justify-content: space-between;
-    gap: 10px;
-  }
-  .clock-box {
-    flex: 1;
-    text-align: center;
-    padding: 8px;
-    border-radius: 8px;
-    background: var(--bg3);
-  }
-  .clock-box.ticking {
-    border: 2px solid var(--accent);
-  }
-  .clock-box .clock-name {
-    font-size: 11px;
-    color: var(--text2);
-    margin-bottom: 2px;
-    font-weight: 600;
-  }
-  .clock-box .clock-time {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 24px;
-    font-weight: 700;
-    color: var(--text);
-  }
-  .clock-box .clock-time.mine { color: var(--accent); }
-  .clock-box .clock-time.low { color: var(--red); }
-
   /* Time control selector */
   .tc-select {
     background: var(--bg3);
@@ -1006,8 +995,10 @@
 
   /* ─── Responsive: Tablet (≤900px) ──────────── */
   @media (max-width: 900px) {
-    #gameScreen { flex-direction: column; align-items: center; padding: 10px; gap: 10px; }
-    .sidebar { width: 100%; max-width: 560px; }
+    #gameScreen { flex-direction: column; align-items: center; padding: 10px; gap: 10px; height: auto; overflow: visible; }
+    .sidebar { width: 100%; max-width: 560px; max-height: none; overflow-y: visible; }
+    .actions { flex-direction: column; }
+    .actions .btn { width: 100%; }
     .cell { width: 30px; height: 30px; font-size: 13px; }
     .col-labels span { width: 30px; }
     .col-labels { margin-left: 22px; }
@@ -1052,15 +1043,11 @@
     .panel { padding: 8px 10px; border-radius: 8px; }
     .panel-title { font-size: 10px; margin-bottom: 6px; }
 
-    /* Clocks compact */
-    .clock-box { padding: 5px; }
-    .clock-box .clock-name { font-size: 10px; }
-    .clock-box .clock-time { font-size: 18px; }
-
-    /* Scores compact */
-    .score-box { padding: 6px; }
-    .score-box .sname { font-size: 11px; }
-    .score-box .sval { font-size: 22px; }
+    /* Score strip compact */
+    .score-strip-player { padding: 4px; }
+    .sname { font-size: 10px; }
+    .sval { font-size: 22px; }
+    .clock-time { font-size: 12px; }
 
     /* Rack */
     .rack-tile { width: 28px; height: 28px; font-size: 12px; }
@@ -1401,29 +1388,16 @@
     <div class="game-over-banner" id="gameOverBanner"></div>
 
     <div class="panel">
-      <div class="panel-title" id="panelClock">Clock</div>
-      <div class="clocks">
-        <div class="clock-box" id="myClockBox">
-          <div class="clock-name" id="myClockName">You</div>
-          <div class="clock-time mine" id="myClockTime">15:00</div>
-        </div>
-        <div class="clock-box" id="oppClockBox">
-          <div class="clock-name" id="oppClockName">Opponent</div>
-          <div class="clock-time" id="oppClockTime">15:00</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="panel">
-      <div class="panel-title" id="panelScore">Score</div>
-      <div class="scores">
-        <div class="score-box" id="myScoreBox">
+      <div class="score-strip">
+        <div class="score-strip-player" id="myScoreBox">
           <div class="sname" id="myScoreName">You</div>
           <div class="sval mine" id="myScoreVal">0</div>
+          <div class="clock-time mine" id="myClockTime">15:00</div>
         </div>
-        <div class="score-box" id="oppScoreBox">
+        <div class="score-strip-player" id="oppScoreBox">
           <div class="sname" id="oppScoreName">Opponent</div>
           <div class="sval" id="oppScoreVal">0</div>
+          <div class="clock-time" id="oppClockTime">15:00</div>
         </div>
       </div>
     </div>
@@ -1432,15 +1406,13 @@
       Opponent disconnected. They have 25 seconds to reconnect...
     </div>
 
-    <div class="disconnect-banner" id="bridgeIndicator" style="display:none; border-color:var(--green); color:var(--green); background:rgba(76,175,125,0.10);">
-      &#x1F309; Bridge scoring active
-    </div>
-
-    <div class="variant-indicator" id="variantIndicator"></div>
-
-    <div class="spectator-banner" id="spectatorBanner" style="display:none;">
-      &#x1F441; Spectating
-      <button class="btn btn-secondary" id="stopSpectateBtn" style="padding:4px 12px; font-size:11px; margin-left:8px;">Leave</button>
+    <div class="game-badges" id="gameBadges" style="display:none;">
+      <span class="game-badge badge-bridge" id="bridgeBadge" style="display:none;" title="Bridge scoring active">🌉</span>
+      <span class="game-badge badge-variant" id="variantBadge" style="display:none;" title=""></span>
+      <span class="game-badge badge-spectator" id="spectatorBadge" style="display:none;">
+        👁 Spectating
+        <button class="btn btn-secondary" id="stopSpectateBtn" style="padding:2px 8px; font-size:10px; margin-left:4px;">Leave</button>
+      </span>
     </div>
 
     <div class="panel">
@@ -2326,25 +2298,25 @@ function renderClocks() {
   myEl.classList.toggle('low', my < 60000 && my > 0);
   oppEl.classList.toggle('low', opp < 60000 && opp > 0);
 
-  // Ticking indicator
+  // Ticking indicator (highlight active turn's score strip)
   const isTicking = gs && gs.phase !== 'finished' && gs.phase !== 'waiting';
-  $id('myClockBox').classList.toggle('ticking', isTicking && gs.isMyTurn);
-  $id('oppClockBox').classList.toggle('ticking', isTicking && !gs.isMyTurn);
+  $id('myScoreBox').classList.toggle('active-turn', isTicking && gs.isMyTurn);
+  $id('oppScoreBox').classList.toggle('active-turn', isTicking && !gs.isMyTurn);
 
   // Names
   if (isSpectating || isReplaying) {
-    $id('myClockName').textContent = gs ? (gs.myName || 'Player 1') : 'Player 1';
-    $id('oppClockName').textContent = gs ? (gs.opponentName || 'Player 2') : 'Player 2';
+    $id('myScoreName').textContent = gs ? (gs.myName || 'Player 1') : 'Player 1';
+    $id('oppScoreName').textContent = gs ? (gs.opponentName || 'Player 2') : 'Player 2';
     if (isReplaying) {
-      $id('myClockBox').classList.toggle('ticking', false);
-      $id('oppClockBox').classList.toggle('ticking', false);
+      $id('myScoreBox').classList.toggle('active-turn', false);
+      $id('oppScoreBox').classList.toggle('active-turn', false);
     } else {
-      $id('myClockBox').classList.toggle('ticking', isTicking && gs && gs.currentTurnIndex === 0);
-      $id('oppClockBox').classList.toggle('ticking', isTicking && gs && gs.currentTurnIndex === 1);
+      $id('myScoreBox').classList.toggle('active-turn', isTicking && gs && gs.currentTurnIndex === 0);
+      $id('oppScoreBox').classList.toggle('active-turn', isTicking && gs && gs.currentTurnIndex === 1);
     }
   } else {
-    $id('myClockName').textContent = playerName || 'You';
-    $id('oppClockName').textContent = opponentName || 'Opponent';
+    $id('myScoreName').textContent = playerName || 'You';
+    $id('oppScoreName').textContent = opponentName || 'Opponent';
   }
 }
 
@@ -2363,8 +2335,6 @@ function stopClockInterval() {
 // ─── Render Labels (translations) ──────────────────────────────────────────────
 function renderLabels() {
   // Panel titles
-  $id('panelClock').textContent = t('clock');
-  $id('panelScore').textContent = t('score');
   $id('panelStatus').textContent = t('status');
   $id('panelActions').textContent = t('actions');
   $id('panelHistory').textContent = t('move_history');
@@ -2394,21 +2364,30 @@ function renderLabels() {
   disconnectBanner.textContent = t('opp_disconnected');
 
   // Bridge indicator
-  const bridgeInd = $id('bridgeIndicator');
-  if (bridgeInd) {
-    bridgeInd.style.display = (gs && gs.bridgeScoring) ? 'block' : 'none';
-    bridgeInd.textContent = t('bridge_active');
+  const bridgeBadge = $id('bridgeBadge');
+  if (bridgeBadge) {
+    bridgeBadge.style.display = (gs && gs.bridgeScoring) ? 'inline-flex' : 'none';
+    bridgeBadge.title = t('bridge_active');
   }
 
   // Variant indicator
-  const varInd = $id('variantIndicator');
-  if (varInd) {
+  const varBadge = $id('variantBadge');
+  if (varBadge) {
     if (gs && gs.variant === 'chosenword') {
-      varInd.style.display = 'block';
-      varInd.textContent = t('variant_chosenword');
+      varBadge.style.display = 'inline-flex';
+      varBadge.textContent = 'CW';
+      varBadge.title = t('variant_chosenword');
     } else {
-      varInd.style.display = 'none';
+      varBadge.style.display = 'none';
     }
+  }
+
+  // Show badges strip if any badge is visible
+  const badgesStrip = $id('gameBadges');
+  if (badgesStrip) {
+    const anyVisible = (bridgeBadge && bridgeBadge.style.display !== 'none') ||
+                       (varBadge && varBadge.style.display !== 'none');
+    badgesStrip.style.display = anyVisible ? 'flex' : 'none';
   }
 
   // Opponent rack label
@@ -2840,7 +2819,7 @@ function connectSocket() {
     gs.playerIndex = 0;
     renderAll();
     startClockInterval();
-    $id('spectatorBanner').style.display = '';
+    $id('spectatorBadge').style.display = 'inline-flex'; $id('gameBadges').style.display = 'flex';
   });
 
   socket.on('spectatorWordPlaced', (data) => {
@@ -2873,7 +2852,7 @@ function connectSocket() {
     if (!isSpectating) return;
     isSpectating = false;
     gs = null;
-    $id('spectatorBanner').style.display = 'none';
+    $id('spectatorBadge').style.display = 'none';
     showToast(data.reason || 'Spectation ended', '');
     showScreen(lobbyScreen);
   });
@@ -2882,7 +2861,7 @@ function connectSocket() {
     gs = null;
     isSpectating = false;
     stopClockInterval();
-    $id('spectatorBanner').style.display = 'none';
+    $id('spectatorBadge').style.display = 'none';
     showToast(data.message || 'Signed in from another device', 'error');
     showScreen(authScreen.classList.contains('active') ? authScreen : lobbyScreen);
   });
@@ -3107,7 +3086,7 @@ function returnToLobby() {
   stopClockInterval();
   gameOverBanner.classList.remove('show');
   disconnectBanner.classList.remove('show');
-  $id('spectatorBanner').style.display = 'none';
+  $id('spectatorBadge').style.display = 'none';
   createRequestBtn.style.display = '';
   cancelRequestBtn.style.display = 'none';
   myRequestBanner.style.display = 'none';
@@ -3374,7 +3353,7 @@ $id('stopSpectateBtn').addEventListener('click', () => {
   socket.emit('stopSpectating');
   isSpectating = false;
   gs = null;
-  $id('spectatorBanner').style.display = 'none';
+  $id('spectatorBadge').style.display = 'none';
   showScreen(lobbyScreen);
 });
 
@@ -3545,7 +3524,7 @@ async function startReplay(gameId) {
     buildBoard();
     showScreen(gameScreen);
     $id('replayBar').style.display = 'flex';
-    $id('spectatorBanner').style.display = 'none';
+    $id('spectatorBadge').style.display = 'none';
     $id('rpSlider').max = replayData.moves.length;
     $id('rpSlider').value = 0;
 
