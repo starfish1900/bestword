@@ -281,8 +281,7 @@
     flex-direction: row;
     padding: 16px;
     gap: 16px;
-    height: calc(100vh - 60px);
-    overflow: hidden;
+    min-height: calc(100vh - 60px);
     justify-content: center;
   }
 
@@ -390,16 +389,7 @@
     gap: 6px;
     width: 320px;
     flex-shrink: 0;
-    overflow-y: auto;
-    max-height: 100%;
-    /* Thin themed scrollbar */
-    scrollbar-width: thin;
-    scrollbar-color: var(--bg3) transparent;
   }
-  .sidebar::-webkit-scrollbar { width: 4px; }
-  .sidebar::-webkit-scrollbar-track { background: transparent; }
-  .sidebar::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 2px; }
-  .sidebar::-webkit-scrollbar-thumb:hover { background: var(--tile-border); }
   .panel {
     background: var(--bg2);
     border: 1px solid var(--bg3);
@@ -1004,8 +994,8 @@
 
   /* ─── Responsive: Tablet (≤900px) ──────────── */
   @media (max-width: 900px) {
-    #gameScreen { flex-direction: column; align-items: center; padding: 10px; gap: 10px; height: auto; overflow: visible; }
-    .sidebar { width: 100%; max-width: 560px; max-height: none; overflow-y: visible; }
+    #gameScreen { flex-direction: column; align-items: center; padding: 10px; gap: 10px; }
+    .sidebar { width: 100%; max-width: 560px; }
     .actions { flex-direction: column; }
     .actions .btn { width: 100%; }
     .cell { width: 30px; height: 30px; font-size: 13px; }
@@ -1846,8 +1836,6 @@ const disconnectBanner = $id('disconnectBanner');
 function showScreen(screen) {
   [authScreen, lobbyScreen, gameScreen].forEach(s => s.classList.remove('active'));
   screen.classList.add('active');
-  // Prevent body scroll on game screen (sidebar handles its own scroll)
-  document.body.style.overflow = (screen === gameScreen) ? 'hidden' : '';
 }
 
 // ─── Toast ─────────────────────────────────────────────────────────────────────
